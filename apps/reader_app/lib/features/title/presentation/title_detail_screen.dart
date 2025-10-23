@@ -1,11 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reader_app/domain/models/library_models.dart';
 import 'package:reader_app/features/library/providers/library_providers.dart';
 import 'package:reader_app/features/title/providers/title_providers.dart';
 import 'package:reader_app/ui/design_system/tokens.dart';
-import 'package:reader_app/ui/design_system/widgets/glass_card.dart';
 import 'package:reader_app/ui/design_system/widgets/glass_sheet.dart';
 
 import '../../shared/widgets/async_value_widget.dart';
@@ -45,7 +44,9 @@ class _TitleScroll extends ConsumerWidget {
     final purchaseState = ref.watch(purchasesProvider);
 
     final isOwned = libraryState.ownedSeries.any((s) => s.id == series.id) ||
-        series.chapters.every((chapter) => purchaseState.ownedChapterIds.contains(chapter.id) || !chapter.isLocked);
+        series.chapters.every((chapter) =>
+            purchaseState.ownedChapterIds.contains(chapter.id) ||
+            !chapter.isLocked);
 
     return CustomScrollView(
       slivers: [
@@ -54,7 +55,8 @@ class _TitleScroll extends ConsumerWidget {
           expandedHeight: 360,
           backgroundColor: theme.scaffoldBackgroundColor,
           flexibleSpace: FlexibleSpaceBar(
-            title: Text(series.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(series.title,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
             background: Padding(
               padding: const EdgeInsets.all(SpacingTokens.lg),
               child: SeriesCover(series: series, aspectRatio: 16 / 9),
@@ -63,19 +65,25 @@ class _TitleScroll extends ConsumerWidget {
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.xl),
+            padding: const EdgeInsets.fromLTRB(SpacingTokens.lg,
+                SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.xl),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(series.subtitle, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                Text(series.subtitle,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                 const SizedBox(height: SpacingTokens.sm),
                 Row(
                   children: [
-                    Icon(Icons.star_rounded, color: theme.colorScheme.secondary),
+                    Icon(Icons.star_rounded,
+                        color: theme.colorScheme.secondary),
                     const SizedBox(width: 6),
-                    Text(series.rating.toStringAsFixed(1), style: theme.textTheme.titleMedium),
+                    Text(series.rating.toStringAsFixed(1),
+                        style: theme.textTheme.titleMedium),
                     const SizedBox(width: SpacingTokens.lg),
-                    Text('${series.totalChapters} chapters · ${series.totalVolumes} volumes',
+                    Text(
+                        '${series.totalChapters} chapters · ${series.totalVolumes} volumes',
                         style: theme.textTheme.bodyMedium),
                   ],
                 ),
@@ -87,7 +95,8 @@ class _TitleScroll extends ConsumerWidget {
                   runSpacing: 8,
                   children: [
                     for (final genre in series.genres) Chip(label: Text(genre)),
-                    for (final tag in series.tags.take(3)) Chip(label: Text('#$tag')),
+                    for (final tag in series.tags.take(3))
+                      Chip(label: Text('#$tag')),
                   ],
                 ),
                 const SizedBox(height: SpacingTokens.xl),
@@ -96,9 +105,12 @@ class _TitleScroll extends ConsumerWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: isOwned
-                            ? () => context.go('/reader/${series.chapters.first.id}')
+                            ? () => context
+                                .go('/reader/${series.chapters.first.id}')
                             : () => _showPurchaseSheet(context, ref, series),
-                        icon: Icon(isOwned ? Icons.play_arrow_rounded : Icons.shopping_bag_rounded),
+                        icon: Icon(isOwned
+                            ? Icons.play_arrow_rounded
+                            : Icons.shopping_bag_rounded),
                         label: Text(isOwned
                             ? 'Continue reading'
                             : 'Buy for ${series.isFree ? 'free' : '\$${series.price.toStringAsFixed(2)}'}'),
@@ -113,10 +125,13 @@ class _TitleScroll extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: SpacingTokens.xl),
-                Text('Chapters', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                Text('Chapters',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: SpacingTokens.md),
                 ...series.chapters.map((chapter) {
-                  final owned = !chapter.isLocked || ref.read(purchasesProvider.notifier).isOwned(chapter.id);
+                  final owned = !chapter.isLocked ||
+                      ref.read(purchasesProvider.notifier).isOwned(chapter.id);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: SpacingTokens.sm),
                     child: ChapterTile(
@@ -128,12 +143,15 @@ class _TitleScroll extends ConsumerWidget {
                       trailing: owned
                           ? const Icon(Icons.play_circle_fill_rounded)
                           : Text('\$${chapter.price.toStringAsFixed(2)}',
-                              style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary)),
+                              style: theme.textTheme.labelMedium
+                                  ?.copyWith(color: theme.colorScheme.primary)),
                     ),
                   );
                 }).toList(),
                 const SizedBox(height: SpacingTokens.xl),
-                Text('You might also like', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                Text('You might also like',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: SpacingTokens.md),
                 _RelatedCarousel(seriesId: series.id),
               ],
@@ -144,7 +162,8 @@ class _TitleScroll extends ConsumerWidget {
     );
   }
 
-  void _showPurchaseSheet(BuildContext context, WidgetRef ref, MangaSeries series) {
+  void _showPurchaseSheet(
+      BuildContext context, WidgetRef ref, MangaSeries series) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -153,9 +172,11 @@ class _TitleScroll extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Buy ${series.title}', style: Theme.of(context).textTheme.titleMedium),
+            Text('Buy ${series.title}',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: SpacingTokens.sm),
-            Text('Includes ${series.totalChapters} chapters and future updates.'),
+            Text(
+                'Includes ${series.totalChapters} chapters and future updates.'),
           ],
         ),
         footer: Row(
@@ -171,11 +192,15 @@ class _TitleScroll extends ConsumerWidget {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  for (final chapter in series.chapters.where((chapter) => chapter.isLocked)) {
-                    ref.read(purchasesProvider.notifier).purchaseChapter(chapter);
+                  for (final chapter
+                      in series.chapters.where((chapter) => chapter.isLocked)) {
+                    ref
+                        .read(purchasesProvider.notifier)
+                        .purchaseChapter(chapter);
                   }
                 },
-                child: Text('Purchase for \$${series.price.toStringAsFixed(2)}'),
+                child:
+                    Text('Purchase for \$${series.price.toStringAsFixed(2)}'),
               ),
             ),
           ],
@@ -184,13 +209,15 @@ class _TitleScroll extends ConsumerWidget {
     );
   }
 
-  void _showChapterPurchaseSheet(BuildContext context, WidgetRef ref, MangaChapter chapter) {
+  void _showChapterPurchaseSheet(
+      BuildContext context, WidgetRef ref, MangaChapter chapter) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => GlassSheet(
         title: chapter.title,
-        child: const Text('Unlock this chapter to continue. Your purchase will sync across devices.'),
+        child: const Text(
+            'Unlock this chapter to continue. Your purchase will sync across devices.'),
         footer: Row(
           children: [
             Expanded(
@@ -204,7 +231,9 @@ class _TitleScroll extends ConsumerWidget {
               child: ElevatedButton(
                 onPressed: () async {
                   Navigator.of(context).pop();
-                  await ref.read(purchasesProvider.notifier).purchaseChapter(chapter);
+                  await ref
+                      .read(purchasesProvider.notifier)
+                      .purchaseChapter(chapter);
                 },
                 child: Text('Unlock for \$${chapter.price.toStringAsFixed(2)}'),
               ),
@@ -261,9 +290,3 @@ class _RelatedCarousel extends ConsumerWidget {
     );
   }
 }
-
-
-
-
-
-

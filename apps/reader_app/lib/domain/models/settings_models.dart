@@ -1,13 +1,12 @@
 import '../models/reader_models.dart';
 
-enum AppThemeStyle { light, dark, liquid, comic }
+enum AppThemeStyle { light, dark }
 
 enum PageTurnAnimation { slide, fade, curl }
 
 class AppSettings {
   const AppSettings({
     required this.themeStyle,
-    required this.liquidGlassEnabled,
     required this.reduceMotion,
     required this.animeThemesEnabled,
     required this.defaultReaderMode,
@@ -19,7 +18,6 @@ class AppSettings {
   });
 
   final AppThemeStyle themeStyle;
-  final bool liquidGlassEnabled;
   final bool reduceMotion;
   final bool animeThemesEnabled;
   final ReaderMode defaultReaderMode;
@@ -31,7 +29,6 @@ class AppSettings {
 
   AppSettings copyWith({
     AppThemeStyle? themeStyle,
-    bool? liquidGlassEnabled,
     bool? reduceMotion,
     bool? animeThemesEnabled,
     ReaderMode? defaultReaderMode,
@@ -43,7 +40,6 @@ class AppSettings {
   }) {
     return AppSettings(
       themeStyle: themeStyle ?? this.themeStyle,
-      liquidGlassEnabled: liquidGlassEnabled ?? this.liquidGlassEnabled,
       reduceMotion: reduceMotion ?? this.reduceMotion,
       animeThemesEnabled: animeThemesEnabled ?? this.animeThemesEnabled,
       defaultReaderMode: defaultReaderMode ?? this.defaultReaderMode,
@@ -56,8 +52,7 @@ class AppSettings {
   }
 
   static AppSettings defaults() => const AppSettings(
-        themeStyle: AppThemeStyle.liquid,
-        liquidGlassEnabled: true,
+        themeStyle: AppThemeStyle.light,
         reduceMotion: false,
         animeThemesEnabled: false,
         defaultReaderMode: ReaderMode.vertical,

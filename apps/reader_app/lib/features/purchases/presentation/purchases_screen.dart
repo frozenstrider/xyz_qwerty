@@ -16,43 +16,63 @@ class PurchasesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Purchases')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.xl),
+        padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg,
+            SpacingTokens.lg, SpacingTokens.xl),
         children: [
           if (purchases.isEmpty)
             Column(
               children: [
-                Icon(Icons.receipt_long_rounded, size: 48, color: Theme.of(context).colorScheme.primary),
+                Icon(Icons.receipt_long_rounded,
+                    size: 48, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: SpacingTokens.md),
-                Text('No purchases yet', style: Theme.of(context).textTheme.titleMedium),
+                Text('No purchases yet',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: SpacingTokens.xs),
-                Text('Unlock premium chapters or volumes to see them listed here.',
-                    textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                    'Unlock premium chapters or volumes to see them listed here.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium),
               ],
             )
           else
             ...purchases.reversed.map((record) {
-              final chapter = ref.read(libraryRepositoryProvider).allSeries
+              final chapter = ref
+                  .read(libraryRepositoryProvider)
+                  .allSeries
                   .expand((series) => series.chapters)
                   .firstWhere((chapter) => chapter.id == record.itemId);
-              final series = library.ownedSeries.firstWhere((s) => s.id == chapter.seriesId,
-                  orElse: () => ref.read(libraryRepositoryProvider).allSeries.firstWhere((s) => s.id == chapter.seriesId));
+              final series = library.ownedSeries.firstWhere(
+                  (s) => s.id == chapter.seriesId,
+                  orElse: () => ref
+                      .read(libraryRepositoryProvider)
+                      .allSeries
+                      .firstWhere((s) => s.id == chapter.seriesId));
               return Padding(
                 padding: const EdgeInsets.only(bottom: SpacingTokens.md),
                 child: GlassCard(
                   child: Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                        child: Icon(Icons.bookmark_added_rounded, color: Theme.of(context).colorScheme.primary),
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.15),
+                        child: Icon(Icons.bookmark_added_rounded,
+                            color: Theme.of(context).colorScheme.primary),
                       ),
                       const SizedBox(width: SpacingTokens.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(chapter.title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                            Text(chapter.title,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
-                            Text(series.title, style: Theme.of(context).textTheme.bodySmall),
+                            Text(series.title,
+                                style: Theme.of(context).textTheme.bodySmall),
                           ],
                         ),
                       ),
@@ -60,9 +80,18 @@ class PurchasesScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text('\$${record.price.toStringAsFixed(2)}',
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
                           Text(DateFormat.yMMMd().format(record.purchasedAt),
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant)),
                         ],
                       ),
                     ],
@@ -73,7 +102,9 @@ class PurchasesScreen extends ConsumerWidget {
           const SizedBox(height: SpacingTokens.xl),
           ElevatedButton.icon(
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Restore purchases will connect to store in production.')),
+              const SnackBar(
+                  content: Text(
+                      'Restore purchases will connect to store in production.')),
             ),
             icon: const Icon(Icons.sync_rounded),
             label: const Text('Restore purchases'),

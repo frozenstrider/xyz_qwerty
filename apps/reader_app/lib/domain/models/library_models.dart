@@ -71,7 +71,11 @@ class MangaChapter {
 }
 
 class PurchaseRecord {
-  const PurchaseRecord({required this.id, required this.itemId, required this.purchasedAt, required this.price});
+  const PurchaseRecord(
+      {required this.id,
+      required this.itemId,
+      required this.purchasedAt,
+      required this.price});
 
   final String id;
   final String itemId;
@@ -80,7 +84,10 @@ class PurchaseRecord {
 }
 
 class MangaHomeFeed {
-  const MangaHomeFeed({required this.featured, required this.newReleases, required this.topRated});
+  const MangaHomeFeed(
+      {required this.featured,
+      required this.newReleases,
+      required this.topRated});
 
   final List<MangaSeries> featured;
   final List<MangaSeries> newReleases;

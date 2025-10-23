@@ -12,10 +12,36 @@ class MainShell extends ConsumerWidget {
   final Widget child;
 
   static final _tabs = [
-    _NavItem(location: '/', nav: const GlassNavItem(label: 'Home', icon: Icons.house_outlined, selectedIcon: Icons.house_rounded)),
-    _NavItem(location: '/search', nav: const GlassNavItem(label: 'Search', icon: Icons.search_outlined, selectedIcon: Icons.search_rounded)),
-    _NavItem(location: '/library', nav: const GlassNavItem(label: 'Library', icon: Icons.collections_bookmark_outlined, selectedIcon: Icons.collections_bookmark)),
-    _NavItem(location: '/settings', nav: const GlassNavItem(label: 'Settings', icon: Icons.settings_outlined, selectedIcon: Icons.settings_rounded)),
+    _NavItem(
+        location: '/',
+        nav: const GlassNavItem(
+            label: 'Home',
+            icon: Icons.house_outlined,
+            selectedIcon: Icons.house_rounded)),
+    _NavItem(
+        location: '/discover',
+        nav: const GlassNavItem(
+            label: 'Discover',
+            icon: Icons.storefront_outlined,
+            selectedIcon: Icons.storefront)),
+    _NavItem(
+        location: '/search',
+        nav: const GlassNavItem(
+            label: 'Search',
+            icon: Icons.search_outlined,
+            selectedIcon: Icons.search_rounded)),
+    _NavItem(
+        location: '/library',
+        nav: const GlassNavItem(
+            label: 'Library',
+            icon: Icons.collections_bookmark_outlined,
+            selectedIcon: Icons.collections_bookmark)),
+    _NavItem(
+        location: '/settings',
+        nav: const GlassNavItem(
+            label: 'Settings',
+            icon: Icons.settings_outlined,
+            selectedIcon: Icons.settings_rounded)),
   ];
 
   int _locationToIndex(Uri uri) {
@@ -24,7 +50,8 @@ class MainShell extends ConsumerWidget {
       if (tab.location == '/') {
         return location == '/';
       }
-      return location == tab.location || location.startsWith('${tab.location}/');
+      return location == tab.location ||
+          location.startsWith('${tab.location}/');
     });
     return matchIndex == -1 ? 0 : matchIndex;
   }
@@ -34,20 +61,11 @@ class MainShell extends ConsumerWidget {
     final currentIndex = _locationToIndex(state.uri);
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width >= 1100;
+    final theme = Theme.of(context);
 
     if (isDesktop) {
-      return DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            radius: 1.2,
-            center: Alignment.topLeft,
-            colors: [
-              Color(0xFFEEF2FF),
-              Color(0xFFF7ECFF),
-              Color(0xFFF9F6FD),
-            ],
-          ),
-        ),
+      return ColoredBox(
+        color: theme.colorScheme.background,
         child: SafeArea(
           top: false,
           bottom: false,
@@ -68,19 +86,27 @@ class MainShell extends ConsumerWidget {
                 ),
                 const SizedBox(width: 32),
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(32),
-                    child: DecoratedBox(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0x33FFFFFF),
-                            Color(0x11FFFFFF),
-                          ],
-                        ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: RadiusTokens.xl,
+                      border: Border.all(
+                        color: theme.colorScheme.outline,
+                        width: 1.6,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(
+                            theme.brightness == Brightness.dark ? 0.4 : 0.12,
+                          ),
+                          offset: const Offset(0, 10),
+                          blurRadius: 24,
+                          spreadRadius: -12,
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: RadiusTokens.xl,
                       child: child,
                     ),
                   ),
@@ -94,7 +120,7 @@ class MainShell extends ConsumerWidget {
 
     return Scaffold(
       extendBody: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: theme.colorScheme.background,
       body: SafeArea(top: false, bottom: false, child: child),
       bottomNavigationBar: GlassNavBar(
         items: [for (final tab in _tabs) tab.nav],
@@ -111,7 +137,8 @@ class MainShell extends ConsumerWidget {
 }
 
 class _DesktopSidebar extends StatelessWidget {
-  const _DesktopSidebar({required this.currentIndex, required this.onSelect, required this.tabs});
+  const _DesktopSidebar(
+      {required this.currentIndex, required this.onSelect, required this.tabs});
 
   final int currentIndex;
   final ValueChanged<int> onSelect;
@@ -147,12 +174,14 @@ class _DesktopSidebar extends StatelessWidget {
                       ),
                       width: 38,
                       height: 38,
-                      child: const Icon(Icons.auto_awesome, color: Colors.white),
+                      child:
+                          const Icon(Icons.auto_awesome, color: Colors.white),
                     ),
                     const SizedBox(width: SpacingTokens.sm),
                     Text(
                       'MangaGlass',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -165,7 +194,8 @@ class _DesktopSidebar extends StatelessWidget {
                     selected: currentIndex == i,
                     onTap: () => onSelect(i),
                   ),
-                  if (i != tabs.length - 1) const SizedBox(height: SpacingTokens.sm),
+                  if (i != tabs.length - 1)
+                    const SizedBox(height: SpacingTokens.sm),
                 ],
               ],
             ),
@@ -177,7 +207,9 @@ class _DesktopSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Need help?', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text('Need help?',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Text(
                   'Access settings or reach out to support anytime.',
@@ -215,7 +247,9 @@ class _SidebarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = selected ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.7);
+    final color = selected
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurface.withOpacity(0.7);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -239,7 +273,9 @@ class _SidebarButton extends StatelessWidget {
             children: [
               Icon(selected ? selectedIcon : icon, color: color),
               const SizedBox(width: SpacingTokens.sm),
-              Text(label, style: theme.textTheme.labelLarge?.copyWith(color: color, fontWeight: FontWeight.w600)),
+              Text(label,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: color, fontWeight: FontWeight.w600)),
             ],
           ),
         ),

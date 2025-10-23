@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../domain/models/settings_models.dart';
 import '../../../domain/models/reader_models.dart';
 
-final settingsProvider = StateNotifierProvider<SettingsController, AppSettings>((ref) {
+final settingsProvider =
+    StateNotifierProvider<SettingsController, AppSettings>((ref) {
   return SettingsController();
 });
 
@@ -12,10 +13,6 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   void setThemeStyle(AppThemeStyle style) {
     state = state.copyWith(themeStyle: style);
-  }
-
-  void toggleLiquidGlass(bool enabled) {
-    state = state.copyWith(liquidGlassEnabled: enabled);
   }
 
   void toggleReduceMotion(bool enabled) {
@@ -50,6 +47,3 @@ class SettingsController extends StateNotifier<AppSettings> {
     state = state.copyWith(defaultReaderMode: mode);
   }
 }
-
-
-

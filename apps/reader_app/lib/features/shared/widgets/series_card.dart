@@ -26,6 +26,11 @@ class SeriesCard extends StatelessWidget {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
     final borderRadius = BorderRadius.circular(compact ? 22 : 28);
+    final EdgeInsetsGeometry contentPadding = compact
+        ? const EdgeInsets.fromLTRB(SpacingTokens.sm, SpacingTokens.sm,
+            SpacingTokens.sm, SpacingTokens.xs)
+        : const EdgeInsets.fromLTRB(SpacingTokens.md, SpacingTokens.md,
+            SpacingTokens.md, SpacingTokens.sm);
 
     return GlassCard(
       onTap: onTap,
@@ -33,53 +38,53 @@ class SeriesCard extends StatelessWidget {
       borderRadius: borderRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.max,
+        mainAxisSize: MainAxisSize.min,
         children: [
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final ratio = compact ? 1.0 : 3 / 4;
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final ratio = compact ? 2 / 3 : 3 / 4;
 
-          if (!constraints.hasBoundedHeight) {
-            return AspectRatio(
-              aspectRatio: ratio,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  SeriesCover(
-                    series: series,
-                    aspectRatio: ratio,
-                    borderRadius: borderRadius,
-                    showWatermark: false,
-                  ),
-                  _Overlay(badges: badges, borderRadius: borderRadius),
-                ],
-              ),
-            );
-          }
-
-          final width = constraints.maxWidth;
-          final height = width / ratio;
-
-          return SizedBox(
-            width: width,
-            height: height,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                SeriesCover(
-                  series: series,
+              if (!constraints.hasBoundedHeight) {
+                return AspectRatio(
                   aspectRatio: ratio,
-                  borderRadius: borderRadius,
-                  showWatermark: false,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      SeriesCover(
+                        series: series,
+                        aspectRatio: ratio,
+                        borderRadius: borderRadius,
+                        showWatermark: false,
+                      ),
+                      _Overlay(badges: badges, borderRadius: borderRadius),
+                    ],
+                  ),
+                );
+              }
+
+              final width = constraints.maxWidth;
+              final height = width / ratio;
+
+              return SizedBox(
+                width: width,
+                height: height,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SeriesCover(
+                      series: series,
+                      aspectRatio: ratio,
+                      borderRadius: borderRadius,
+                      showWatermark: false,
+                    ),
+                    _Overlay(badges: badges, borderRadius: borderRadius),
+                  ],
                 ),
-                _Overlay(badges: badges, borderRadius: borderRadius),
-              ],
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(SpacingTokens.md, SpacingTokens.md, SpacingTokens.md, SpacingTokens.sm),
+            padding: contentPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -87,7 +92,8 @@ class SeriesCard extends StatelessWidget {
                   series.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 if (series.subtitle.isNotEmpty)
                   Padding(
@@ -96,15 +102,19 @@ class SeriesCard extends StatelessWidget {
                       series.subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8)),
+                      style: textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withOpacity(0.8)),
                     ),
                   ),
                 const SizedBox(height: SpacingTokens.sm),
                 Row(
                   children: [
-                    Icon(Icons.star_rounded, color: theme.colorScheme.secondary, size: 18),
+                    Icon(Icons.star_rounded,
+                        color: theme.colorScheme.secondary, size: 18),
                     const SizedBox(width: 6),
-                    Text(series.rating.toStringAsFixed(1), style: textTheme.labelMedium),
+                    Text(series.rating.toStringAsFixed(1),
+                        style: textTheme.labelMedium),
                     const Spacer(),
                     _PriceChip(series: series),
                   ],
@@ -114,7 +124,12 @@ class SeriesCard extends StatelessWidget {
           ),
           if (footer != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(SpacingTokens.md, 0, SpacingTokens.md, SpacingTokens.md),
+              padding: EdgeInsets.fromLTRB(
+                compact ? SpacingTokens.sm : SpacingTokens.md,
+                0,
+                compact ? SpacingTokens.sm : SpacingTokens.md,
+                compact ? SpacingTokens.sm : SpacingTokens.md,
+              ),
               child: footer!,
             ),
         ],
@@ -181,10 +196,12 @@ class _PriceChip extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: SpacingTokens.sm, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+            horizontal: SpacingTokens.sm, vertical: 6),
         child: Text(
           isFree ? 'Included' : '\$${series.price.toStringAsFixed(2)}',
-          style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white),
+          style: theme.textTheme.labelSmall
+              ?.copyWith(fontWeight: FontWeight.w600, color: Colors.white),
         ),
       ),
     );

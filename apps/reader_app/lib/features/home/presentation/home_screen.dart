@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reader_app/domain/models/library_models.dart';
@@ -72,7 +72,10 @@ class _HomeScroll extends ConsumerWidget {
                           onTap: () => context.go('/title/${series.id}'),
                           compact: false,
                           badges: [
-                            _Badge.chip(label: series.rating.toStringAsFixed(1), icon: Icons.star, color: theme.colorScheme.secondary),
+                            _Badge.chip(
+                                label: series.rating.toStringAsFixed(1),
+                                icon: Icons.star,
+                                color: theme.colorScheme.secondary),
                             if (index < 3) _Badge.pill(label: 'NEW'),
                           ],
                         ),
@@ -89,7 +92,8 @@ class _HomeScroll extends ConsumerWidget {
                   action: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.list_alt_rounded, color: theme.colorScheme.primary),
+                      Icon(Icons.list_alt_rounded,
+                          color: theme.colorScheme.primary),
                       const SizedBox(width: 6),
                       Text('Newest First', style: theme.textTheme.labelLarge),
                     ],
@@ -113,7 +117,10 @@ class _HomeScroll extends ConsumerWidget {
                       series: series,
                       onTap: () => context.go('/title/${series.id}'),
                       badges: [
-                        _Badge.chip(label: series.rating.toStringAsFixed(1), icon: Icons.star, color: theme.colorScheme.secondary),
+                        _Badge.chip(
+                            label: series.rating.toStringAsFixed(1),
+                            icon: Icons.star,
+                            color: theme.colorScheme.secondary),
                       ],
                       footer: Wrap(
                         spacing: 6,
@@ -122,7 +129,8 @@ class _HomeScroll extends ConsumerWidget {
                           for (final genre in series.genres.take(3))
                             Chip(
                               label: Text(genre),
-                              padding: const EdgeInsets.symmetric(horizontal: SpacingTokens.xs),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: SpacingTokens.xs),
                             ),
                         ],
                       ),
@@ -172,7 +180,8 @@ class _MarketplaceHero extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.collections_bookmark_outlined, color: Colors.white, size: 96),
+            child: const Icon(Icons.collections_bookmark_outlined,
+                color: Colors.white, size: 96),
           ),
         );
 
@@ -183,7 +192,8 @@ class _MarketplaceHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                 decoration: BoxDecoration(
                   borderRadius: RadiusTokens.pill,
                   gradient: LinearGradient(
@@ -195,18 +205,21 @@ class _MarketplaceHero extends StatelessWidget {
                 ),
                 child: Text(
                   'RAW MANGA MARKETPLACE',
-                  style: theme.textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                      color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: 18),
               Text(
                 'Authentic Japanese Manga',
-                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Text(
                 'Purchase official releases directly from Japanese publishers.\nSupport creators and enjoy manga in its original form.',
-                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.92)),
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(color: Colors.white.withOpacity(0.92)),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
@@ -221,7 +234,6 @@ class _MarketplaceHero extends StatelessWidget {
         return GlassCard(
           borderRadius: BorderRadius.circular(40),
           padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
-          blurSigma: BlurTokens.thick,
           child: isWide
               ? Row(
                   mainAxisSize: MainAxisSize.min,
@@ -264,10 +276,12 @@ class _SearchShortcut extends StatelessWidget {
           children: [
             Icon(Icons.search_rounded, color: theme.colorScheme.primary),
             const SizedBox(width: 16),
-            Flexible(fit: FlexFit.loose,
+            Flexible(
+              fit: FlexFit.loose,
               child: Text(
                 'Search manga, author, or genreâ€¦',
-                style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7)),
               ),
             ),
             const SizedBox(width: 12),
@@ -286,7 +300,9 @@ class _SearchShortcut extends StatelessWidget {
                 children: [
                   const Icon(Icons.tune_rounded, size: 18, color: Colors.white),
                   const SizedBox(width: 8),
-                  Text('Filters', style: theme.textTheme.labelMedium?.copyWith(color: Colors.white)),
+                  Text('Filters',
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(color: Colors.white)),
                 ],
               ),
             ),
@@ -298,7 +314,8 @@ class _SearchShortcut extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.subtitle, this.action});
+  const _SectionHeader(
+      {required this.title, required this.subtitle, this.action});
 
   final String title;
   final String subtitle;
@@ -314,9 +331,14 @@ class _SectionHeader extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text(title,
+                style: theme.textTheme.headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            Text(subtitle, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8))),
+            Text(subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color:
+                        theme.colorScheme.onSurfaceVariant.withOpacity(0.8))),
           ],
         ),
         if (action != null) action!,
@@ -328,7 +350,8 @@ class _SectionHeader extends StatelessWidget {
 class _Badge extends StatelessWidget {
   const _Badge._({required this.child});
 
-  factory _Badge.chip({required String label, required IconData icon, required Color color}) {
+  factory _Badge.chip(
+      {required String label, required IconData icon, required Color color}) {
     return _Badge._(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -341,7 +364,9 @@ class _Badge extends StatelessWidget {
           children: [
             Icon(icon, size: 16, color: Colors.white),
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -358,7 +383,9 @@ class _Badge extends StatelessWidget {
             colors: [Color(0xFFFF7EE5), Color(0xFF7A7DFF)],
           ),
         ),
-        child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        child: Text(label,
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.w700)),
       ),
     );
   }
@@ -368,8 +395,3 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => child;
 }
-
-
-
-
-

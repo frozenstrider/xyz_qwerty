@@ -1,24 +1,57 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:reader_app/data/local_library_repository.dart';
 import 'package:reader_app/data/mock_repository.dart';
 import 'package:reader_app/domain/models/library_models.dart';
+import 'package:reader_app/domain/models/local_library_models.dart';
 import 'package:reader_app/domain/models/reader_models.dart';
 
-final libraryRepositoryProvider = Provider<MockLibraryRepository>((ref) => MockLibraryRepository());
+final libraryRepositoryProvider =
+    Provider<MockLibraryRepository>((ref) => MockLibraryRepository());
 
 final homeFeedProvider = FutureProvider<MangaHomeFeed>((ref) async {
   final repository = ref.watch(libraryRepositoryProvider);
   return repository.loadHomeFeed();
 });
 
-final libraryStateProvider = StateNotifierProvider<LibraryController, LibraryState>((ref) {
+final libraryStateProvider =
+    StateNotifierProvider<LibraryController, LibraryState>((ref) {
   final repository = ref.watch(libraryRepositoryProvider);
   return LibraryController(repository);
 });
 
-final purchasesProvider = StateNotifierProvider<PurchaseController, PurchaseState>((ref) {
+final purchasesProvider =
+    StateNotifierProvider<PurchaseController, PurchaseState>((ref) {
   final repository = ref.watch(libraryRepositoryProvider);
   return PurchaseController(ref: ref, repository: repository);
 });
+
+final localLibraryRepositoryProvider =
+    Provider<LocalLibraryRepository>((ref) => LocalLibraryRepository());
+
+final localSeriesProvider =
+    StateNotifierProvider<LocalSeriesController, List<LocalSeries>>((ref) {
+  final repository = ref.watch(localLibraryRepositoryProvider);
+  return LocalSeriesController(repository);
+});
+
+class LocalSeriesController extends StateNotifier<List<LocalSeries>> {
+  LocalSeriesController(this._repository) : super(const []);
+
+  final LocalLibraryRepository _repository;
+
+  Future<LocalSeries?> importDirectory(String directoryPath) async {
+    final imported = await _repository.importFolder(directoryPath);
+    if (imported == null) {
+      return null;
+    }
+    final next = [
+      for (final series in state)
+        if (series.id != imported.id) series,
+    ];
+    state = [...next, imported];
+    return imported;
+  }
+}
 
 class LibraryState {
   const LibraryState({
@@ -48,14 +81,20 @@ class LibraryState {
   }
 
   static LibraryState bootstrap(MockLibraryRepository repository) {
-    final owned = repository.allSeries.where((series) => !series.isPremium || series.price == 0 || series.id == 'starlight-courier').toList();
+    final owned = repository.allSeries
+        .where((series) =>
+            !series.isPremium ||
+            series.price == 0 ||
+            series.id == 'starlight-courier')
+        .toList();
     final downloadedIds = <String>{};
     final progress = <String, int>{};
     final recents = <String>[];
 
     for (final series in owned) {
       final firstChapter = series.chapters.first;
-      progress[firstChapter.id] = firstChapter.lastReadPage.clamp(0, firstChapter.pages.length - 1);
+      progress[firstChapter.id] =
+          firstChapter.lastReadPage.clamp(0, firstChapter.pages.length - 1);
       if (firstChapter.isDownloaded) {
         downloadedIds.add(firstChapter.id);
       }
@@ -72,7 +111,8 @@ class LibraryState {
 }
 
 class LibraryController extends StateNotifier<LibraryState> {
-  LibraryController(this._repository) : super(LibraryState.bootstrap(_repository));
+  LibraryController(this._repository)
+      : super(LibraryState.bootstrap(_repository));
 
   final MockLibraryRepository _repository;
 
@@ -82,14 +122,26 @@ class LibraryController extends StateNotifier<LibraryState> {
   }
 
   void onChapterPurchased(MangaChapter chapter) {
-    final owned = state.ownedSeries.any((series) => series.id == chapter.seriesId)
-        ? state.ownedSeries
-        : [...state.ownedSeries, _repository.allSeries.firstWhere((series) => series.id == chapter.seriesId)];
+    final owned =
+        state.ownedSeries.any((series) => series.id == chapter.seriesId)
+            ? state.ownedSeries
+            : [
+                ...state.ownedSeries,
+                _repository.allSeries
+                    .firstWhere((series) => series.id == chapter.seriesId)
+              ];
 
-    final progress = Map<String, int>.from(state.readingProgress)..putIfAbsent(chapter.id, () => 0);
-    final recents = [chapter.id, ...state.recentChapterIds.where((id) => id != chapter.id)];
+    final progress = Map<String, int>.from(state.readingProgress)
+      ..putIfAbsent(chapter.id, () => 0);
+    final recents = [
+      chapter.id,
+      ...state.recentChapterIds.where((id) => id != chapter.id)
+    ];
 
-    state = state.copyWith(ownedSeries: owned, readingProgress: progress, recentChapterIds: recents);
+    state = state.copyWith(
+        ownedSeries: owned,
+        readingProgress: progress,
+        recentChapterIds: recents);
   }
 
   void markChapterDownloaded(String chapterId, {required bool isDownloaded}) {
@@ -105,8 +157,12 @@ class LibraryController extends StateNotifier<LibraryState> {
   void updateProgress(String chapterId, int pageIndex) {
     final progress = Map<String, int>.from(state.readingProgress);
     progress[chapterId] = pageIndex;
-    final recents = [chapterId, ...state.recentChapterIds.where((id) => id != chapterId)];
-    state = state.copyWith(readingProgress: progress, recentChapterIds: recents);
+    final recents = [
+      chapterId,
+      ...state.recentChapterIds.where((id) => id != chapterId)
+    ];
+    state =
+        state.copyWith(readingProgress: progress, recentChapterIds: recents);
   }
 
   MangaChapter? findChapter(String chapterId) {
@@ -125,7 +181,8 @@ class PurchaseState {
   final List<PurchaseRecord> history;
   final Set<String> ownedChapterIds;
 
-  PurchaseState copyWith({List<PurchaseRecord>? history, Set<String>? ownedChapterIds}) {
+  PurchaseState copyWith(
+      {List<PurchaseRecord>? history, Set<String>? ownedChapterIds}) {
     return PurchaseState(
       history: history ?? this.history,
       ownedChapterIds: ownedChapterIds ?? this.ownedChapterIds,
@@ -135,7 +192,8 @@ class PurchaseState {
   static PurchaseState initial(MockLibraryRepository repository) {
     final owned = <String>{};
     final history = <PurchaseRecord>[];
-    for (final series in repository.allSeries.where((series) => !series.isPremium)) {
+    for (final series
+        in repository.allSeries.where((series) => !series.isPremium)) {
       for (final chapter in series.chapters) {
         if (!chapter.isLocked) {
           owned.add(chapter.id);
@@ -147,7 +205,8 @@ class PurchaseState {
 }
 
 class PurchaseController extends StateNotifier<PurchaseState> {
-  PurchaseController({required this.ref, required MockLibraryRepository repository})
+  PurchaseController(
+      {required this.ref, required MockLibraryRepository repository})
       : _repository = repository,
         super(PurchaseState.initial(repository));
 
@@ -155,7 +214,8 @@ class PurchaseController extends StateNotifier<PurchaseState> {
   final MockLibraryRepository _repository;
 
   Future<PurchaseRecord> purchaseChapter(MangaChapter chapter) async {
-    await Future.delayed(_repository.latency + const Duration(milliseconds: 160));
+    await Future.delayed(
+        _repository.latency + const Duration(milliseconds: 160));
     final record = PurchaseRecord(
       id: '-',
       itemId: chapter.id,

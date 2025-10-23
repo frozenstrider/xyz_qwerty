@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/models/local_library_models.dart';
+import '../features/discover/presentation/discover_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/library/presentation/library_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/purchases/presentation/purchases_screen.dart';
 import '../features/title/presentation/title_detail_screen.dart';
+import '../features/reader/presentation/local_vertical_reader_screen.dart';
 import '../features/reader/presentation/reader_screen.dart';
 import '../features/login/presentation/login_screen.dart';
 import '../features/shared/widgets/main_shell.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey(debugLabel: 'rootNavigator');
-final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey(debugLabel: 'shellNavigator');
+final GlobalKey<NavigatorState> _rootNavigatorKey =
+    GlobalKey(debugLabel: 'rootNavigator');
+final GlobalKey<NavigatorState> _shellNavigatorKey =
+    GlobalKey(debugLabel: 'shellNavigator');
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -29,22 +34,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             name: 'home',
-            pageBuilder: (context, state) => const NoTransitionPage(child: HomeScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: HomeScreen()),
+          ),
+          GoRoute(
+            path: '/discover',
+            name: 'discover',
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: DiscoverScreen()),
           ),
           GoRoute(
             path: '/search',
             name: 'search',
-            pageBuilder: (context, state) => const NoTransitionPage(child: SearchScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SearchScreen()),
           ),
           GoRoute(
             path: '/library',
             name: 'library',
-            pageBuilder: (context, state) => const NoTransitionPage(child: LibraryScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: LibraryScreen()),
           ),
           GoRoute(
             path: '/settings',
             name: 'settings',
-            pageBuilder: (context, state) => const NoTransitionPage(child: SettingsScreen()),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: SettingsScreen()),
           ),
         ],
       ),
@@ -52,13 +67,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/title/:id',
         name: 'title-detail',
-        builder: (context, state) => TitleDetailScreen(titleId: state.pathParameters['id'] ?? ''),
+        builder: (context, state) =>
+            TitleDetailScreen(titleId: state.pathParameters['id'] ?? ''),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/reader/local',
+        name: 'local-reader',
+        builder: (context, state) {
+          final chapter = state.extra as LocalChapter?;
+          if (chapter == null) {
+            return const Scaffold(
+              body: Center(child: Text('Missing local chapter')),
+            );
+          }
+          return LocalVerticalReaderScreen(chapter: chapter);
+        },
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/reader/:chapterId',
         name: 'reader',
-        builder: (context, state) => ReaderScreen(chapterId: state.pathParameters['chapterId'] ?? ''),
+        builder: (context, state) =>
+            ReaderScreen(chapterId: state.pathParameters['chapterId'] ?? ''),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,

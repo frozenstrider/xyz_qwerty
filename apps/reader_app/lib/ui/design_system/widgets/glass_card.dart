@@ -1,140 +1,124 @@
-import 'dart:ui';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../theme.dart' show SurfaceStyle, SurfaceVariant;
 import '../tokens.dart';
 
 class GlassCard extends StatelessWidget {
-  const GlassCard({super.key, required this.child, this.onTap, this.padding, this.blurSigma = BlurTokens.regular, this.borderRadius = RadiusTokens.lg});
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.padding,
+    this.borderRadius = RadiusTokens.lg,
+  });
 
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry? padding;
-  final double blurSigma;
   final BorderRadius borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    final variant = Theme.of(context).extension<SurfaceStyle>()?.variant ?? SurfaceVariant.glass;
-    if (variant == SurfaceVariant.comic) {
-      return _ComicCard(
-        borderRadius: borderRadius,
-        padding: padding,
-        onTap: onTap,
-        child: child,
-      );
-    }
-
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bool isDark = theme.brightness == Brightness.dark;
-    final Color surfaceBlend = Color.alphaBlend(
-      scheme.surfaceVariant.withOpacity(isDark ? 0.22 : 0.12),
-      scheme.surface.withOpacity(isDark ? 0.72 : 0.48),
-    );
-    final gradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        surfaceBlend.withOpacity(isDark ? 0.92 : 0.82),
-        surfaceBlend.withOpacity(isDark ? 0.78 : 0.64),
-        surfaceBlend.withOpacity(isDark ? 0.62 : 0.46),
+    final isDark = theme.brightness == Brightness.dark;
+    final background = theme.colorScheme.surface;
+    final borderColor = theme.colorScheme.outline;
+    final shadowColor = isDark
+        ? Colors.black.withOpacity(0.36)
+        : Colors.black.withOpacity(0.12);
+
+    Widget content = Stack(
+      fit: StackFit.passthrough,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: borderRadius,
+            boxShadow: [
+              BoxShadow(
+                color: shadowColor,
+                offset: const Offset(0, 8),
+                blurRadius: 18,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: padding ?? const EdgeInsets.all(SpacingTokens.md),
+            child: child,
+          ),
+        ),
+        IgnorePointer(
+          child: CustomPaint(
+            painter: _PencilStrokePainter(
+              borderRadius: borderRadius,
+              baseColor: borderColor,
+              isDark: isDark,
+            ),
+          ),
+        ),
       ],
-      stops: const [0, 0.55, 1],
-    );
-
-    final glassDecoration = BoxDecoration(
-      gradient: gradient,
-      borderRadius: borderRadius,
-      border: Border.all(color: Colors.white.withOpacity(isDark ? 0.08 : 0.16)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.32 : 0.08),
-          offset: const Offset(0, 18),
-          blurRadius: 36,
-          spreadRadius: -20,
-        ),
-        BoxShadow(
-          color: Colors.white.withOpacity(isDark ? 0.04 : 0.12),
-          offset: const Offset(-4, -4),
-          blurRadius: 20,
-          spreadRadius: -22,
-        ),
-      ],
-    );
-
-    final highlightDecoration = BoxDecoration(
-      borderRadius: borderRadius,
-      gradient: RadialGradient(
-        center: Alignment.topLeft,
-        radius: 1.2,
-        colors: [
-          Colors.white.withOpacity(isDark ? 0.08 : 0.18),
-          Colors.transparent,
-        ],
-      ),
-    );
-
-    final content = ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-        child: Container(
-          decoration: glassDecoration,
-          foregroundDecoration: highlightDecoration,
-          padding: padding ?? const EdgeInsets.all(SpacingTokens.md),
-          child: child,
-        ),
-      ),
     );
 
     if (onTap != null) {
-      return InkWell(
+      content = Material(
+        color: Colors.transparent,
         borderRadius: borderRadius,
-        onTap: onTap,
-        child: content,
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: onTap,
+          child: content,
+        ),
       );
     }
+
     return content;
   }
 }
 
-class _ComicCard extends StatelessWidget {
-  const _ComicCard({
-    required this.child,
+class _PencilStrokePainter extends CustomPainter {
+  _PencilStrokePainter({
     required this.borderRadius,
-    this.padding,
-    this.onTap,
-  });
+    required this.baseColor,
+    required this.isDark,
+  }) : _random = math.Random(42);
 
-  final Widget child;
   final BorderRadius borderRadius;
-  final EdgeInsetsGeometry? padding;
-  final VoidCallback? onTap;
+  final Color baseColor;
+  final bool isDark;
+  final math.Random _random;
 
   @override
-  Widget build(BuildContext context) {
-    final box = DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: borderRadius,
-        border: Border.all(color: Colors.black, width: 1.4),
-      ),
-      child: Padding(
-        padding: padding ?? const EdgeInsets.all(SpacingTokens.md),
-        child: child,
-      ),
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndCorners(
+      Offset.zero & size,
+      topLeft: borderRadius.topLeft,
+      topRight: borderRadius.topRight,
+      bottomLeft: borderRadius.bottomLeft,
+      bottomRight: borderRadius.bottomRight,
     );
 
-    if (onTap == null) {
-      return box;
+    final primaryStroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = isDark ? baseColor.withOpacity(0.9) : baseColor;
+    canvas.drawRRect(rrect, primaryStroke);
+
+    for (var i = 0; i < 2; i++) {
+      final jitter = (_random.nextDouble() * 0.4) - 0.2;
+      final opacity = isDark ? 0.25 : 0.4;
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6 + jitter
+        ..color = baseColor.withOpacity(opacity);
+      canvas.drawRRect(rrect.deflate(0.3 + i * 0.4), paint);
     }
-
-    return InkWell(
-      borderRadius: borderRadius,
-      onTap: onTap,
-      child: box,
-    );
   }
+
+  @override
+  bool shouldRepaint(covariant _PencilStrokePainter oldDelegate) =>
+      oldDelegate.borderRadius != borderRadius ||
+      oldDelegate.baseColor != baseColor ||
+      oldDelegate.isDark != isDark;
 }

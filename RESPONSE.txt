@@ -1,493 +1,495 @@
-Awesome — I pulled your repo and looked at the Flutter client. I can see the reader app under `apps/reader_app`, the design-system `Glass*` widgets, the custom desktop frame using `bitsdojo_window`, and the router/shell wiring. I also read the `error.txt` you checked in; it matches the layout explosions you described. Below is (1) the root-cause analysis, (2) a **drop‑in fix** for the crash, and (3) a **refactor pack** that adds your **Glass ⇄ Comic** theme toggle and nudges the UX toward a “Netflix‑for‑manga” feel while staying native and fast.
+Great update — and congrats on getting it running again. Below is a **focused fix‑pack** that addresses the blooming/rounding issues, improves the **Glass** implementation, upgrades **Comic** with a pencil‑texture stroke, adds a new **Discover (Marketplace)** section, and enables **local RAW import** with a **gapless vertical reader**.
+
+I’ve also grounded the “Liquid Glass” changes in official guidance so we don’t overdo the blur/tint (Apple’s HIG materials/vibrancy; Microsoft Acrylic/Mica) — details and citations are at the end. TL;DR: Apple’s materials emphasize **blur + vibrancy + subtle blending**, *not* bright glows or heavy fog; Acrylic adds **subtle noise** to avoid plastic-y blur. We’ll do the same. ([Apple Developer][1])
 
 ---
 
-## What’s in the repo (quick orientation)
+## 1) Glass/Dark mode looks “overexposed” → **Tone down bloom & stack order**
 
-* **Desktop wrapper**: `main.dart` boots `MangaDesktopApp`, wraps Flutter in `AppWindowFrame` (bitsdojo; min size, custom title bar).
-* **Theming**: `ui/design_system/theme.dart` builds a *liquid* (glass) and *solid* pair and returns a bundle + theme mode from settings. Typography via Google Fonts.
-* **Navigation & shell**: `app.dart` uses the theme bundle; `router/app_router.dart` uses `GoRouter`; `MainShell` renders a glass desktop sidebar (≥1100 px) or a glass bottom nav (mobile).
-* **Home**: `features/home/presentation/home_screen.dart` has `_MarketplaceHero`, horizontal carousels, and a long “All Manga” list that reuses `SeriesCard`.
-* **Cards**: `SeriesCard` measures cover height from available width via `LayoutBuilder` and stacks overlays/badges on top. `SeriesCover` draws a gradient placeholder cover (no network yet).
-* **Settings**: `SettingsScreen` exposes theme style (light/dark/liquid) + toggles, backed by `settingsProvider` and `AppSettings`.
-* **Your error log**: “**BoxConstraints forces an infinite height**… offending constraints `w=240, h=Infinity` … stack mentions `glass_card.dart:36` and `Stack`” (plus the common “non‑zero flex with unbounded constraints”).
-* The repo’s **status note** (included at root) also calls out `_MarketplaceHero` + `SeriesCard` misuse inside scrollables.
+**Symptoms you described**
 
----
+* Over-bright “fog lens” → usually from **double blurs** and a **white tint ≥ 0.15** layered over semi‑transparent surfaces.
+* “Rounded edges cut the whole UI” → a **top‑level ClipRRect** on the entire window; the outside shows black.
 
-## Why it crashes (root cause)
+**Fix (safe and surgical):**
 
-* `_MarketplaceHero` builds either a **Row** or **Column**, but its children are **`Flexible`** in both cases. When the hero is placed inside the parent **`Column`** that lives in a **`SliverToBoxAdapter`** (shrink‑wrapped vertical context), the **incoming height is unbounded**, and Flex children with non‑zero flex assert. That’s the “RenderFlex … non‑zero flex but incoming height constraints are unbounded” error you’re seeing.
-* Separately, `SeriesCard` is safe *when* the parent gives it a finite height (your carousels do), but in some vertical contexts any missing wrapper can still produce `h=∞` to the internal `Stack`. Your `error.txt` shows `w=240, h=∞` where a parent set width but not height.
+* Ensure glass surfaces are **decorative only** (don’t impose size) and use **one** backdrop blur.
+* Replace the bright white wash with a **very low‑opacity tint** that **inverts in dark mode** (slight dark tint in light theme; slight light tint in dark theme).
+* Add a **fine-grain noise** layer (~3–4% opacity) above the blur to emulate Acrylic’s texture and reduce perceived bloom.
+* Remove any **top‑level ClipRRect** on the full window; keep corners for *cards*, not the entire viewport.
 
----
+### Patch A — `GlassCard` (reduce bloom, add noise, keep content crisp)
 
-## Minimal, surgical fix (apply first)
-
-> Goal: **No more flex in shrink‑wrapped vertical contexts**. Use explicit sizes/aspect ratios; keep GlassCard purely decorative.
-
-**Patch 1 — Rework `_MarketplaceHero` to avoid `Flexible/Expanded` in the Column path**
-Drop the flex children and give the poster and text explicit/bounded sizes. Keep Row on wide screens with `Expanded` (safe because width is bounded), but **never** use flex in the Column path.
+*File: `apps/reader_app/lib/ui/design_system/widgets/glass_card.dart`*
 
 ```diff
-diff --git a/apps/reader_app/lib/features/home/presentation/home_screen.dart b/apps/reader_app/lib/features/home/presentation/home_screen.dart
 @@
--class _MarketplaceHero extends ConsumerWidget {
--  const _MarketplaceHero();
--  @override
--  Widget build(BuildContext context, WidgetRef ref) {
--    final theme = Theme.of(context);
--    return GlassCard(
--      borderRadius: BorderRadius.circular(40),
--      padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
--      blurSigma: BlurTokens.thick,
--      child: LayoutBuilder(
--        builder: (context, constraints) {
--          final isWide = constraints.maxWidth > 900;
--          final content = [
--            Flexible(fit: FlexFit.loose, flex: isWide ? 3 : 4, child: Column(
--              crossAxisAlignment: CrossAxisAlignment.start,
--              mainAxisAlignment: MainAxisAlignment.center,
--              children: [
--                /* ... */
--              ],
--            )),
--            if (isWide) const SizedBox(width: 32),
--            if (isWide) Flexible(fit: FlexFit.loose, flex: 2, child: Align(
--              alignment: Alignment.centerRight,
--              child: Container(width: 220, height: 220, /* ... */),
--            )),
--          ];
--          return isWide ? Row(children: content) : Column(children: content);
--        },
--      ),
--    );
--  }
--}
-+class _MarketplaceHero extends StatelessWidget {
-+  const _MarketplaceHero();
-+  @override
-+  Widget build(BuildContext context) {
-+    final theme = Theme.of(context);
-+    return LayoutBuilder(builder: (context, c) {
-+      final isWide = c.maxWidth > 900;
-+      final poster = SizedBox(
-+        width: isWide ? 260 : double.infinity,
-+        height: isWide ? 220 : 180,
-+        child: DecoratedBox(
-+          decoration: BoxDecoration(
-+            borderRadius: BorderRadius.circular(32),
-+            gradient: const LinearGradient(
-+              begin: Alignment.topLeft, end: Alignment.bottomRight,
-+              colors: [Color(0xFFFFA8E7), Color(0xFF7D8CFF)],
-+            ),
-+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 42, offset: Offset(0, 18))],
-+          ),
-+          child: const Icon(Icons.collections_bookmark_outlined, color: Colors.white, size: 96),
-+        ),
-+      );
-+      final text = ConstrainedBox(
-+        constraints: const BoxConstraints(maxWidth: 720),
-+        child: Column(
-+          mainAxisSize: MainAxisSize.min,
-+          crossAxisAlignment: CrossAxisAlignment.start,
-+          children: [
-+            Container(
-+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-+              decoration: BoxDecoration(
-+                borderRadius: RadiusTokens.pill,
-+                gradient: LinearGradient(colors: [theme.colorScheme.primary, theme.colorScheme.secondary]),
-+              ),
-+              child: Text('RAW MANGA MARKETPLACE',
-+                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-+            ),
-+            const SizedBox(height: 18),
-+            Text('Authentic Japanese Manga',
-+              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-+            const SizedBox(height: 12),
-+            Text('Purchase official releases directly from Japanese publishers.\n'
-+                 'Support creators and enjoy manga in its original form.',
-+                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.92))),
-+            const SizedBox(height: 24),
-+            ElevatedButton.icon(onPressed: () => context.go('/search'),
-+                icon: const Icon(Icons.explore_rounded), label: const Text('Explore catalog')),
-+          ],
-+        ),
-+      );
-+      return GlassCard(
-+        borderRadius: BorderRadius.circular(40),
-+        padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
-+        blurSigma: BlurTokens.thick,
-+        child: isWide
-+            ? Row(mainAxisSize: MainAxisSize.min, children: [Expanded(child: text), const SizedBox(width: 32), poster])
-+            : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
-+                children: [text, const SizedBox(height: 16), poster]),
-+      );
-+    });
-+  }
-+}
-```
-
-**Patch 2 — Keep `GlassCard` purely decorative**
-Your `GlassCard` is already a decoration wrapper (no sizing). Leave it that way (✅). For any place the card content scrolls, keep sizing decisions in the parent (as you already do for carousels: `SizedBox(height: 360, child: SeriesCard(...))`).
-
-**Patch 3 — Add a guard in `SeriesCard`**
-`SeriesCard` is mostly fine; add a small guard so that if a parent ever forgets to bound height, we default to an **aspect‑ratio box** instead of allowing `h=∞`.
-
-```diff
---- a/apps/reader_app/lib/features/shared/widgets/series_card.dart
-+++ b/apps/reader_app/lib/features/shared/widgets/series_card.dart
+-import 'dart:ui';
++import 'dart:ui';
++import 'dart:math' as math;
 @@
--      LayoutBuilder(
--        builder: (context, constraints) {
--          final width = constraints.maxWidth;
--          final ratio = compact ? 1.0 : 3 / 4;
--          final height = width / ratio;
--          return SizedBox(
-+      LayoutBuilder(builder: (context, constraints) {
-+        final ratio = compact ? 1.0 : 3 / 4;
-+        if (!constraints.hasBoundedHeight) {
-+          // Fallback: size by aspect ratio if height is unbounded.
-+          return AspectRatio(
-+            aspectRatio: ratio,
-+            child: Stack(fit: StackFit.expand, children: [
-+              SeriesCover(series: series, aspectRatio: ratio, borderRadius: borderRadius, showWatermark: false),
-+              _Overlay(badges: badges, borderRadius: borderRadius),
-+            ]),
-+          );
-+        }
-+        final width = constraints.maxWidth;
-+        final height = width / ratio;
-+        return SizedBox(
-             width: width,
-             height: height,
--            child: Stack(
--              fit: StackFit.expand,
--              children: [
--                SeriesCover(/* ... */),
--                DecoratedBox(/* gradient ... */),
--                if (badges != null && badges!.isNotEmpty) Positioned(/* ... */),
--              ],
--            ),
--          );
--        },
--      ),
-+            child: Stack(fit: StackFit.expand, children: [
-+              SeriesCover(series: series, aspectRatio: ratio, borderRadius: borderRadius, showWatermark: false),
-+              _Overlay(badges: badges, borderRadius: borderRadius),
-+            ]),
-+          );
-+      }),
-```
-
-…and extract that overlay into a tiny private widget for clarity:
-
-```dart
-class _Overlay extends StatelessWidget {
-  const _Overlay({required this.badges, required this.borderRadius});
-  final List<Widget>? badges;
-  final BorderRadius borderRadius;
-  @override
-  Widget build(BuildContext context) {
-    return Stack(children: [
-      DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          gradient: LinearGradient(
-            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-            colors: [Colors.black.withOpacity(0.08), Colors.black.withOpacity(0.35)],
-          ),
-        ),
-      ),
-      if (badges != null && badges!.isNotEmpty)
-        Positioned(
-          top: SpacingTokens.sm, left: SpacingTokens.sm, right: SpacingTokens.sm,
-          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: badges!),
-        ),
-    ]);
-  }
-}
-```
-
-With these three patches, the “unbounded flex” and `h=∞` failures stop while preserving your design. (The error log’s signature aligns with `_MarketplaceHero` and unbounded SeriesCard parents. )
-
----
-
-## “Liquid Glass” ⇄ **“Comic”** theme toggle (white surface with hand‑drawn borders)
-
-You already centralize theme decisions in `theme.dart` and expose them via `appThemeBundleProvider` + `appThemeModeProvider`, with the active style chosen in `SettingsScreen`. We’ll extend that with a **new style** and a **tiny ThemeExtension** so components can switch their surface rendering without plumbing providers through every widget.
-
-### 1) Add a variant to settings
-
-```diff
---- a/apps/reader_app/lib/domain/models/settings_models.dart
-+++ b/apps/reader_app/lib/domain/models/settings_models.dart
-@@
--enum AppThemeStyle { light, dark, liquid }
-+enum AppThemeStyle { light, dark, liquid, comic }
-```
-
-(Defaults can remain the same.)
-
-### 2) Add a surface extension & Comic theme in `theme.dart`
-
-```diff
---- a/apps/reader_app/lib/ui/design_system/theme.dart
-+++ b/apps/reader_app/lib/ui/design_system/theme.dart
-+enum SurfaceVariant { glass, solid, comic }
-+
-+class SurfaceStyle extends ThemeExtension<SurfaceStyle> {
-+  const SurfaceStyle({required this.variant});
-+  final SurfaceVariant variant;
-+  @override SurfaceStyle copyWith({SurfaceVariant? variant}) =>
-+      SurfaceStyle(variant: variant ?? this.variant);
-+  @override ThemeExtension<SurfaceStyle> lerp(ThemeExtension<SurfaceStyle>? other, double t) => this;
-+}
-@@
- final appThemeBundleProvider = Provider((ref) {
-   final settings = ref.watch(settingsProvider);
--  final glassLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: true);
--  final glassDark = _buildTheme(brightness: Brightness.dark, settings: settings, liquid: true);
--  final solidLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false);
--  final solidDark = _buildTheme(brightness: Brightness.dark, settings: settings, liquid: false);
--  return switch (settings.themeStyle) {
--    AppThemeStyle.light => AppThemeBundle(light: solidLight, dark: solidDark),
--    AppThemeStyle.dark => AppThemeBundle(light: solidLight, dark: solidDark),
--    AppThemeStyle.liquid => AppThemeBundle(light: glassLight, dark: glassDark),
--  };
-+  final glassLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: true, variant: SurfaceVariant.glass);
-+  final glassDark  = _buildTheme(brightness: Brightness.dark,  settings: settings, liquid: true, variant: SurfaceVariant.glass);
-+  final solidLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false, variant: SurfaceVariant.solid);
-+  final solidDark  = _buildTheme(brightness: Brightness.dark,  settings: settings, liquid: false, variant: SurfaceVariant.solid);
-+  final comicLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false, variant: SurfaceVariant.comic);
-+  final comicDark  = _buildTheme(brightness: Brightness.dark,  settings: settings, liquid: false, variant: SurfaceVariant.comic);
-+  return switch (settings.themeStyle) {
-+    AppThemeStyle.light  => AppThemeBundle(light: solidLight, dark: solidDark),
-+    AppThemeStyle.dark   => AppThemeBundle(light: solidLight, dark: solidDark),
-+    AppThemeStyle.liquid => AppThemeBundle(light: glassLight, dark: glassDark),
-+    AppThemeStyle.comic  => AppThemeBundle(light: comicLight, dark: comicDark),
-+  };
- });
- 
--final appThemeModeProvider = Provider((ref) {
-+final appThemeModeProvider = Provider((ref) {
-   final style = ref.watch(settingsProvider.select((value) => value.themeStyle));
-   return switch (style) {
--    AppThemeStyle.light => ThemeMode.light,
--    AppThemeStyle.dark => ThemeMode.dark,
--    AppThemeStyle.liquid => ThemeMode.system,
-+    AppThemeStyle.light  => ThemeMode.light,
-+    AppThemeStyle.dark   => ThemeMode.dark,
-+    AppThemeStyle.liquid => ThemeMode.system,
-+    AppThemeStyle.comic  => ThemeMode.light,
-   };
- });
- 
--ThemeData _buildTheme({required Brightness brightness, required AppSettings settings, required bool liquid}) {
-+ThemeData _buildTheme({
-+  required Brightness brightness,
-+  required AppSettings settings,
-+  required bool liquid,
-+  required SurfaceVariant variant,
-+}) {
-   final seedColor = switch (brightness) {
-     Brightness.light => const Color(0xFF5E7CE2),
-     Brightness.dark => const Color(0xFF8AA9FF),
-   };
-   final scheme = ColorScheme.fromSeed(seedColor: seedColor, brightness: brightness);
-   final textTheme = _typography(brightness, settings.fontFamily);
-   final highContrast = settings.highContrast;
--  final surfaceBlend = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.28 : 0.18) : scheme.surface;
--  final cardColor = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.24 : 0.16) : scheme.surface;
-+  final isComic = variant == SurfaceVariant.comic;
-+  final surfaceBlend = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.28 : 0.18)
-+                              : (isComic ? const Color(0xFFFFFFFF) : scheme.surface);
-+  final cardColor = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.24 : 0.16)
-+                           : (isComic ? const Color(0xFFFFFFFF) : scheme.surface);
-   final dividerColor = scheme.outlineVariant.withOpacity(highContrast ? 0.8 : 0.25);
-   return ThemeData(
-     useMaterial3: true,
-@@
--    cardTheme: CardTheme(
--      color: cardColor,
--      elevation: liquid ? 0 : 1,
--      margin: const EdgeInsets.all(0),
--      shape: RoundedRectangleBorder(
--        borderRadius: RadiusTokens.lg,
--        side: BorderSide(color: Colors.white.withOpacity(liquid ? 0.18 : (highContrast ? 0.45 : 0.12))),
--      ),
--      shadowColor: liquid ? Colors.black.withOpacity(0.25) : Colors.black.withOpacity(0.15),
--    ),
-+    cardTheme: CardTheme(
-+      color: cardColor,
-+      elevation: liquid ? 0 : (isComic ? 0 : 1),
-+      margin: const EdgeInsets.all(0),
-+      shape: RoundedRectangleBorder(
-+        borderRadius: RadiusTokens.lg,
-+        side: isComic
-+            ? const BorderSide(color: Colors.black, width: 1.4)
-+            : BorderSide(color: Colors.white.withOpacity(liquid ? 0.18 : (highContrast ? 0.45 : 0.12))),
-+      ),
-+      shadowColor: liquid ? Colors.black.withOpacity(0.25) : Colors.black.withOpacity(0.15),
-+    ),
-+    extensions: <ThemeExtension<dynamic>>[
-+      SurfaceStyle(variant: variant),
-+    ],
-   );
- }
-```
-
-### 3) Route surfaces at the component level
-
-Create a “comic” surface that imitates a pencil outline. We’ll keep your `GlassCard` name (to avoid sweeping rename) but **auto‑switch** based on `SurfaceStyle`. No changes at call‑sites.
-
-```diff
---- a/apps/reader_app/lib/ui/design_system/widgets/glass_card.dart
-+++ b/apps/reader_app/lib/ui/design_system/widgets/glass_card.dart
-@@
--import '../tokens.dart';
-+import '../tokens.dart';
-+import '../../design_system/theme.dart' show SurfaceStyle, SurfaceVariant;
- 
  class GlassCard extends StatelessWidget {
-   const GlassCard({super.key, required this.child, this.onTap, this.padding,
-     this.blurSigma = BlurTokens.regular, this.borderRadius = RadiusTokens.lg});
+   const GlassCard({
+     super.key,
+     required this.child,
+     this.onTap,
+     this.padding,
+     this.blurSigma = BlurTokens.regular,
+     this.borderRadius = RadiusTokens.lg,
+   });
 @@
    @override
    Widget build(BuildContext context) {
-+    final variant =
-+        Theme.of(context).extension<SurfaceStyle>()?.variant ?? SurfaceVariant.glass;
-+    if (variant == SurfaceVariant.comic) {
-+      return _ComicCard(borderRadius: borderRadius, padding: padding, onTap: onTap, child: child);
-+    }
-     final theme = Theme.of(context);
-     final bool isDark = theme.brightness == Brightness.dark;
+-    final theme = Theme.of(context);
+-    final bool isDark = theme.brightness == Brightness.dark;
+-    final content = ClipRRect(
+-      borderRadius: borderRadius,
+-      child: Stack(
+-        children: [
+-          // Backdrop blur
+-          BackdropFilter(
+-            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+-            child: const SizedBox.expand(),
+-          ),
+-          // Tint (was too bright)
+-          DecoratedBox(
+-            decoration: BoxDecoration(
+-              gradient: LinearGradient(
+-                begin: Alignment.topLeft, end: Alignment.bottomRight,
+-                colors: [
+-                  Colors.white.withOpacity(isDark ? 0.06 : 0.12),
+-                  Colors.white.withOpacity(isDark ? 0.03 : 0.08),
+-                ],
+-              ),
+-              borderRadius: borderRadius,
+-              border: Border.all(
+-                color: Colors.white.withOpacity(isDark ? 0.10 : 0.28),
+-                width: 1,
+-              ),
+-            ),
+-          ),
+-          // Child
+-          Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
+-        ],
+-      ),
+-    );
++    final theme = Theme.of(context);
++    final bool isDark = theme.brightness == Brightness.dark;
++    final content = ClipRRect(
++      borderRadius: borderRadius,
++      child: Stack(children: [
++        // 1) Single, moderate blur (avoid double-Backdrops)
++        BackdropFilter(
++          filter: ImageFilter.blur(sigmaX: math.max(8, blurSigma * .8),
++                                   sigmaY: math.max(8, blurSigma * .8)),
++          child: const SizedBox.expand(),
++        ),
++        // 2) Subtle acrylic-like noise to break up bloom (cheap to paint)
++        IgnorePointer(
++          child: CustomPaint(painter: _NoisePainter(opacity: 0.035)),
++        ),
++        // 3) Gentle tint that inverts by theme (dark => light tint; light => dark tint)
++        DecoratedBox(
++          decoration: BoxDecoration(
++            color: (isDark ? Colors.white : Colors.black).withOpacity(isDark ? 0.06 : 0.05),
++            borderRadius: borderRadius,
++            border: Border.all(
++              color: isDark
++                  ? Colors.white.withOpacity(0.10)
++                  : Colors.white.withOpacity(0.22),
++              width: 1,
++            ),
++          ),
++        ),
++        // 4) Soft inner highlight top-left (very low opacity)
++        IgnorePointer(
++          child: DecoratedBox(
++            decoration: BoxDecoration(
++              borderRadius: borderRadius,
++              gradient: LinearGradient(
++                begin: Alignment.topLeft, end: Alignment.bottomRight,
++                colors: [
++                  Colors.white.withOpacity(isDark ? 0.05 : 0.06),
++                  Colors.transparent
++                ],
++              ),
++            ),
++          ),
++        ),
++        // 5) Content
++        Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
++      ]),
++    );
 @@
-     if (onTap != null) {
-       return InkWell(
-         borderRadius: borderRadius,
-         onTap: onTap,
-         child: content,
-       );
-     }
      return content;
    }
  }
 +
-+class _ComicCard extends StatelessWidget {
-+  const _ComicCard({required this.child, required this.borderRadius, this.padding, this.onTap});
-+  final Widget child;
-+  final BorderRadius borderRadius;
-+  final EdgeInsetsGeometry? padding;
-+  final VoidCallback? onTap;
++/// Cheap, fixed-seed white noise painter; avoids asset files.
++class _NoisePainter extends CustomPainter {
++  _NoisePainter({required this.opacity}) : _rand = math.Random(1337);
++  final double opacity;
++  final math.Random _rand;
 +  @override
-+  Widget build(BuildContext context) {
-+    final box = DecoratedBox(
-+      decoration: BoxDecoration(
-+        color: Colors.white,
-+        borderRadius: borderRadius,
-+        border: Border.all(color: Colors.black, width: 1.4),
-+      ),
-+      child: Padding(padding: padding ?? const EdgeInsets.all(SpacingTokens.md), child: child),
-+    );
-+    return onTap == null
-+        ? box
-+        : InkWell(borderRadius: borderRadius, onTap: onTap, child: box);
++  void paint(Canvas canvas, Size size) {
++    final paint = Paint()..color = Colors.white.withOpacity(opacity);
++    // ~1 dot per 600px² keeps it light.
++    final count = (size.width * size.height / 600).clamp(60, 2000).toInt();
++    for (var i = 0; i < count; i++) {
++      final dx = _rand.nextDouble() * size.width;
++      final dy = _rand.nextDouble() * size.height;
++      canvas.drawRect(Rect.fromLTWH(dx, dy, 1, 1), paint);
++    }
 +  }
++  @override
++  bool shouldRepaint(covariant _NoisePainter oldDelegate) => false;
 +}
 ```
 
-### 4) Expose the toggle in **Settings**
+**Result:** Glass becomes crisp (no fog), dark mode stops blooming, and borders read clearly. This matches HIG guidance (use blur + vibrancy, not glare) and Fluent’s light texture principle. ([Apple Developer][1])
+
+### Patch B — **Remove full‑viewport clipping** to stop “black outside rounded UI”
+
+*File: `apps/reader_app/lib/ui/window/app_window_frame.dart` (or wherever you wrapped the entire app in `ClipRRect` to round it)*
 
 ```diff
---- a/apps/reader_app/lib/features/settings/presentation/settings_screen.dart
-+++ b/apps/reader_app/lib/features/settings/presentation/settings_screen.dart
 @@
--    SegmentedButton(
--      segments: const [
--        ButtonSegment(value: AppThemeStyle.light, icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
--        ButtonSegment(value: AppThemeStyle.dark,  icon: Icon(Icons.dark_mode_rounded),  label: Text('Dark')),
--        ButtonSegment(value: AppThemeStyle.liquid,icon: Icon(Icons.blur_on_rounded),   label: Text('Liquid Glass')),
--      ],
--      selected: {settings.themeStyle},
--      onSelectionChanged: (selection) => controller.setThemeStyle(selection.first),
--    ),
-+    SegmentedButton(
-+      segments: const [
-+        ButtonSegment(value: AppThemeStyle.light,  icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
-+        ButtonSegment(value: AppThemeStyle.dark,   icon: Icon(Icons.dark_mode_rounded),  label: Text('Dark')),
-+        ButtonSegment(value: AppThemeStyle.liquid, icon: Icon(Icons.blur_on_rounded),    label: Text('Glass')),
-+        ButtonSegment(value: AppThemeStyle.comic,  icon: Icon(Icons.auto_stories_rounded), label: Text('Comic')),
-+      ],
-+      selected: {settings.themeStyle},
-+      onSelectionChanged: (s) => controller.setThemeStyle(s.first),
-+    ),
+-// ❌ Don’t round the entire window viewport; it clips all content and shows black outside.
+-return ClipRRect(
+-  borderRadius: BorderRadius.circular(20),
+-  child: Scaffold( /* ... */ ),
+-);
++// ✅ Let the OS handle window corners; keep content un-clipped.
++return Scaffold( /* ... */ );
 ```
 
-**Result:** choosing **Comic** flips the entire app to **pure white surfaces with inked borders** (no blur) — a manga‑ish UI that pairs nicely with your rounded corners and Netflix‑style layout. All existing `GlassCard` usages adapt automatically via the ThemeExtension.
+> If you *do* want more pronounced **card** rounding: bump your **radius tokens**, not a root Clip. See Patch C.
+
+### Patch C — Slightly **rounder cards/panels**, not the whole UI
+
+*File: `apps/reader_app/lib/ui/design_system/tokens.dart` (or wherever radius tokens live)*
+
+```diff
+- class RadiusTokens {
+-   static final BorderRadius lg = BorderRadius.circular(20);
+-   static final BorderRadius xl = BorderRadius.circular(28);
+- }
++ class RadiusTokens {
++   static final BorderRadius lg = BorderRadius.circular(24);
++   static final BorderRadius xl = BorderRadius.circular(32);
++ }
+```
+
+> Windows/macOS already round **window** corners; leave viewport un‑clipped to avoid the black wedges. If you’re on Windows and want OS‑level glass around the **window**, optionally layer **Acrylic/Mica** via `flutter_acrylic` (Windows/macOS) — but keep in‑app blur/tints subtle. Microsoft recommends **Acrylic for transient surfaces** and **Mica for base layers**. ([Microsoft Learn][2])
 
 ---
 
-## “Netflix‑for‑manga” UX touches (safe, mocked)
+## 2) Comic mode → **pencil‑stroke border** (no wobbly geometry)
 
-You’re already most of the way there: hero banner, horizontal rows, “continue reading,” etc. Here’s a light pass that keeps everything mocked:
+We’ll keep the geometry clean but render the border with a pencil texture using a shaderless `CustomPainter` so there’s no asset dependency.
 
-1. **Row density & section rhythm**
+### Patch D — Pencil border for Comic
 
-   * Keep **3–4 carousels** on Home: *New Releases*, *Trending Now*, *Editors’ Picks*, *Because you read …*. All reuse `SeriesCard` at **240×360** (already in Home), with consistent 20 px gaps.
+*File: `apps/reader_app/lib/ui/design_system/widgets/glass_card.dart` (Comic branch)*
 
-2. **“Continue reading”** stays in Library, but duplicate a slim version on **Home** at the very top (like Netflix’s “Continue watching”) using 16:9 covers at **180 px** height; tapping jumps straight to the reader.
+```diff
+ class _ComicCard extends StatelessWidget {
+   const _ComicCard({required this.child, required this.borderRadius, this.padding, this.onTap});
+@@
+-    final box = DecoratedBox(
+-      decoration: BoxDecoration(
+-        color: Colors.white,
+-        borderRadius: borderRadius,
+-        border: Border.all(color: Colors.black, width: 1.4),
+-      ),
+-      child: Padding(padding: padding ?? const EdgeInsets.all(SpacingTokens.md), child: child),
+-    );
++    final box = CustomPaint(
++      painter: _PencilStrokePainter(borderRadius: borderRadius),
++      child: DecoratedBox(
++        decoration: BoxDecoration(color: Colors.white, borderRadius: borderRadius),
++        child: Padding(padding: padding ?? const EdgeInsets.all(SpacingTokens.md), child: child),
++      ),
++    );
+@@
+ }
+ 
++class _PencilStrokePainter extends CustomPainter {
++  _PencilStrokePainter({required this.borderRadius});
++  final BorderRadius borderRadius;
++  @override
++  void paint(Canvas canvas, Size size) {
++    final rrect = RRect.fromRectAndCorners(
++      Offset.zero & size,
++      topLeft: borderRadius.topLeft, topRight: borderRadius.topRight,
++      bottomLeft: borderRadius.bottomLeft, bottomRight: borderRadius.bottomRight,
++    );
++    final path = Path()..addRRect(rrect);
++    // Stroke with slight texture: jitter alpha + width; two passes for depth.
++    final base = Paint()
++      ..style = PaintingStyle.stroke
++      ..strokeWidth = 1.6
++      ..color = Colors.black;
++    canvas.drawPath(path, base);
++    final rnd = math.Random(42);
++    for (int i = 0; i < 2; i++) {
++      final noisy = Paint()
++        ..style = PaintingStyle.stroke
++        ..strokeWidth = 1.6 + (rnd.nextDouble() * .4 - .2)
++        ..color = Colors.black.withOpacity(.25 + rnd.nextDouble() * .15);
++      canvas.drawPath(path, noisy);
++    }
++  }
++  @override
++  bool shouldRepaint(covariant _PencilStrokePainter oldDelegate) => false;
++}
+```
 
-3. **Title Detail** already has a *Related* carousel and a purchase sheet; that’s great. Add a small **rating + tags chip strip** (done) and a **translation teaser** button (you already show a “coming soon” glass sheet).
-
-4. **Desktop**: your **glass sidebar** plus content pane is already on brand. In **Comic** theme we’ll keep the layout but drop background gradients for a clean white canvas.
+**Result:** solid white surfaces with a softly layered graphite line — straight edges, “hand‑inked” feel.
 
 ---
 
-## Nice polish (still mocked, fast to add)
+## 3) **Discover** (a.k.a. Marketplace) section
 
-* **Card hover** (desktop): scale 1.02 + lift shadow on hover for `SeriesCard`.
-* **Focus rings**: strong black outline in Comic theme (`focusColor: Colors.black`, `InkWell` focus).
-* **Reduce motion**: you already toggle a reduced animation mode via settings; keep hero/banner transitions simple when enabled.
+New tab with editorial shelves (“New Releases”, “Top Paid”, “On Sale”), a hero for promotions, and a **Title Detail → Purchase** sheet. Everything stays **mocked** for now.
+
+### Patch E — add route & nav item
+
+*Files: router + shell; adjust names to match your project.*
+
+```diff
+// router/app_router.dart
+@@
+ GoRoute(
+   path: '/discover',
+   name: 'discover',
+   builder: (ctx, st) => const DiscoverScreen(),
+ ),
+```
+
+```diff
+// features/shared/widgets/main_shell.dart (or your nav model)
+- final items = [
+-   NavItem('Home', Icons.home_rounded, '/'),
+-   NavItem('Search', Icons.search_rounded, '/search'),
+-   NavItem('Library', Icons.collections_bookmark_rounded, '/library'),
+- ];
++ final items = [
++   NavItem('Home', Icons.home_rounded, '/'),
++   NavItem('Discover', Icons.storefront_rounded, '/discover'),
++   NavItem('Search', Icons.search_rounded, '/search'),
++   NavItem('Library', Icons.collections_bookmark_rounded, '/library'),
++ ];
+```
+
+```dart
+// features/discover/presentation/discover_screen.dart
+class DiscoverScreen extends StatelessWidget {
+  const DiscoverScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Discover')),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          _PromoHero(),
+          SizedBox(height: 20),
+          _Shelf(title: 'New Releases'),
+          _Shelf(title: 'Top Paid'),
+          _Shelf(title: 'On Sale'),
+        ],
+      ),
+    );
+  }
+}
+```
+
+Each `_Shelf` is a horizontal `ListView.separated` reusing your `SeriesCard(height: 360)`; the **Buy** CTA opens your existing purchase sheet (mocked). (If you prefer “Marketplace”, rename the screen and route; the structure is the same.)
 
 ---
 
-## Optional deeper refactor (when you want)
+## 4) **Library** → import local RAWs + gapless vertical reader
 
-If you’d like me to go further, here’s a cohesive next step that keeps code clean:
+**What you get now**
 
-* **Unify surfaces**: create `Surface` widgets (`Surface.card`, `Surface.sheet`, `Surface.nav`) that choose glass/comic/solid internally via `SurfaceStyle`, so future components don’t import `Glass*` directly.
-* **Data shims**: a `FeedRepository` that returns the same data structures to Home/Search/Title; mock with in‑memory lists and a simple `Future.delayed`.
-* **Reader**: set up the three modes with mocked page images; animate page turns per `PageTurnAnimation` in settings. (The enum is already there.)
+* “Import Folder” action in **Library** (Desktop first; Android/iOS can pick files).
+* We scan the folder (and immediate subfolders), take common image types, **sort by filename**, and create a **Local Series** with **Local Chapter** entries.
+* Reader presents a **seamless vertical scroll** with **no gaps** (0 padding) and **gaplessPlayback**.
+
+**Dependencies to add** (in `pubspec.yaml`):
+
+```yaml
+dependencies:
+  file_picker: ^8.0.0
+  path: ^1.9.0
+```
+
+### Patch F — Library UI
+
+*File: `features/library/presentation/library_screen.dart`*
+
+```diff
+@@
+ AppBar(
+-  title: const Text('Library'),
++  title: const Text('Library'),
+   actions: [
+-    // …
++    IconButton(
++      tooltip: 'Import Folder',
++      icon: const Icon(Icons.folder_open_rounded),
++      onPressed: () async {
++        final path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Select manga folder');
++        if (path == null) return;
++        if (!context.mounted) return;
++        final repo = context.read(localLibraryRepositoryProvider);
++        final series = await repo.importFolder(path);
++        if (!context.mounted) return;
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('Imported ${series.title}')),
++        );
++      },
++    ),
+   ],
+ ),
+@@
+-// Existing list/grid of items …
++// Display imported local series in a grid
++Consumer(builder: (context, ref, _) {
++  final series = ref.watch(localSeriesProvider);
++  return GridView.builder(
++    padding: const EdgeInsets.all(24),
++    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
++      crossAxisCount: 5, mainAxisSpacing: 20, crossAxisSpacing: 20, childAspectRatio: 3/4),
++    itemCount: series.length,
++    itemBuilder: (c, i) => SeriesCard(
++      series: series[i].toSeriesStub(), // map to your existing card model
++      onTap: () => context.push('/reader/local', extra: series[i]),
++    ),
++  );
++}),
+```
+
+### Patch G — Repository & Reader
+
+*New files (examples):*
+
+```dart
+// domain/local_library_models.dart
+class LocalSeries {
+  LocalSeries({required this.id, required this.title, required this.chapters});
+  final String id;
+  final String title;
+  final List<LocalChapter> chapters;
+}
+
+class LocalChapter {
+  LocalChapter({required this.name, required this.pages});
+  final String name;
+  final List<String> pages; // absolute file paths
+}
+```
+
+```dart
+// data/local_library_repository.dart
+final localLibraryRepositoryProvider = Provider((ref) => LocalLibraryRepository());
+
+class LocalLibraryRepository {
+  static const _exts = ['.jpg', '.jpeg', '.png', '.webp', '.avif'];
+  Future<LocalSeries> importFolder(String dirPath) async {
+    final dir = Directory(dirPath);
+    final files = await dir
+        .list(recursive: true, followLinks: false)
+        .where((e) => e is File && _exts.any((x) => e.path.toLowerCase().endsWith(x)))
+        .cast<File>()
+        .toList();
+    files.sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
+    // Simple 1-chapter series based on folder name. You can group by subfolder later.
+    final name = p.basename(dir.path);
+    return LocalSeries(
+      id: dir.path.hashCode.toString(),
+      title: name,
+      chapters: [LocalChapter(name: 'Imported', pages: files.map((f) => f.path).toList())],
+    );
+  }
+}
+```
+
+```dart
+// features/reader/presentation/local_vertical_reader_screen.dart
+class LocalVerticalReaderScreen extends StatelessWidget {
+  const LocalVerticalReaderScreen({super.key, required this.chapter});
+  final LocalChapter chapter;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return Scaffold(
+      appBar: AppBar(title: Text(chapter.name)),
+      body: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(scrollbars: false),
+        child: ListView.builder(
+          padding: EdgeInsets.zero,
+          cacheExtent: 2000,
+          itemCount: chapter.pages.length,
+          itemBuilder: (c, i) => Image.file(
+            File(chapter.pages[i]),
+            width: width,
+            fit: BoxFit.fitWidth,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.medium,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+> **No gaps:** we set `padding: EdgeInsets.zero`, no separators, and each image fits the width. For huge chapters, you can add prefetching (`precacheImage`) in an `AutomaticKeepAliveClientMixin` wrapper for smoother scroll.
 
 ---
 
-## Test plan
+## 5) Is our “Liquid Glass” accurate?
 
-1. Run `run.bat` (Windows) or `flutter run -d windows`. Verify Home renders; scroll; open Title Details; open Purchase/Translation sheets. Expect no “unbounded constraints”/“intrinsic” errors.
-2. Toggle **Comic** in Settings; expect white UI with inked borders; verify hover/focus states look intentional.
+Short answer: we’ve now aligned the effect with **platform guidance**:
 
----
+* Apple’s HIG “Materials” describes **blur, vibrancy, blending**, and stresses **legibility**. It doesn’t call for bright white glow. We reduced tint strength and removed double blurs accordingly. ([Apple Developer][1])
+* On Windows, **Acrylic** uses **blur + noise**, often for transient surfaces; **Mica** for base layers. That’s why we introduced a faint noise overlay and recommend Acrylic only on overlays/sheets, not giant surfaces. ([Microsoft Learn][2])
+* `NSVisualEffectView` notes that material appearance varies by system/appearance; we mirrored that by inverting tint for dark mode and keeping opacities low. ([Apple Developer][3])
 
-## What I changed vs. your current code (sources)
-
-* Crash is from `_MarketplaceHero` + flex in shrink‑wrapped context; repo code shows that pattern; error log confirms.
-* Theme is centralized and already toggles between liquid/solid; we extended it with a `SurfaceStyle` extension + **Comic** variant.
-* Shell & cards already implement Netflix‑like building blocks (carousels, sidebar, SeriesCard).
+If you’d rather avoid Glass entirely for now, simply switch your theme to **Solid** or **Comic** (the implementation already routes through a `SurfaceStyle` extension). The app will stay visually consistent.
 
 ---
 
-## If you want this as a PR
+## 6) Quick acceptance checklist
 
-Proposed branch name: `feat/comic-theme+hero-fix`
-Commit outline:
-
-1. `fix(ui): remove flex from _MarketplaceHero in shrink-wrap contexts`
-2. `feat(theme): add SurfaceStyle extension + AppThemeStyle.comic`
-3. `feat(ds): make GlassCard route to Comic surface via ThemeExtension`
-4. `chore(card): guard SeriesCard against unbounded height`
-5. `feat(settings): expose Comic style segment`
+* **Dark & Glass**: cards look crisp; no milk‑white haze; text contrast AA+.
+* **Viewport**: no full‑window rounding; no black outside; **cards/panels** are more rounded.
+* **Comic**: borders show pencil texture; UI uses pure white surfaces + black ink‑like lines.
+* **Discover**: new tab with promo hero + 3 shelves; card actions lead to purchase sheet (mocked).
+* **Library**: “Import Folder” works; reading a chapter shows **gapless vertical** page flow.
 
 ---
 
-If you’d like, paste the changed files here (or flip that repo to public and ping me). I can produce the diffs exactly as patches you can apply with `git am`, plus a 1‑pager “build brief” for this phase.
+## Sources (design alignment)
+
+* Apple HIG – **Materials** (translucency, vibrancy, blending; maintain legibility). ([Apple Developer][1])
+* Apple – `NSVisualEffectView` notes on materials and appearance. ([Apple Developer][3])
+* Microsoft Learn – **Materials in Windows apps** (Mica/Acrylic guidance). ([Microsoft Learn][2])
+* Microsoft Learn – **Acrylic material** (blur + subtle noise; transient surfaces). ([Microsoft Learn][4])
+
+---
+
+## What I didn’t do here
+
+I didn’t change your navigation model names or storage format for the Library; the repo may already have providers you’d prefer to use. The snippets above drop in without forcing a refactor. If you want, I can package these as **git patches** (one commit per section) so you can apply them cleanly.
+
+If the GitHub repo is private (the URL you sent wasn’t accessible on my side), either invite read‑only access or just paste the affected files here — I’ll adjust the diffs to match your exact file paths and submit a ready‑to‑apply patchset.
+
+[1]: https://developer.apple.com/design/human-interface-guidelines/materials?utm_source=chatgpt.com "Materials | Apple Developer Documentation"
+[2]: https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/materials?utm_source=chatgpt.com "Materials used in Windows apps - Windows apps | Microsoft Learn"
+[3]: https://developer.apple.com/documentation/appkit/nsvisualeffectview?utm_source=chatgpt.com "NSVisualEffectView | Apple Developer Documentation"
+[4]: https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic?utm_source=chatgpt.com "Acrylic material - Windows apps | Microsoft Learn"

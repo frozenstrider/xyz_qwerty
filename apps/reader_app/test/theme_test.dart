@@ -10,15 +10,15 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    expect(container.read(settingsProvider).themeStyle, AppThemeStyle.liquid);
+    expect(container.read(settingsProvider).themeStyle, AppThemeStyle.light);
+    expect(container.read(appThemeModeProvider), ThemeMode.light);
 
     container.read(settingsProvider.notifier).setThemeStyle(AppThemeStyle.dark);
     expect(container.read(appThemeModeProvider), ThemeMode.dark);
 
-    container.read(settingsProvider.notifier).setThemeStyle(AppThemeStyle.light);
-    expect(container.read(appThemeModeProvider), ThemeMode.light);
-
-    container.read(settingsProvider.notifier).setThemeStyle(AppThemeStyle.comic);
+    container
+        .read(settingsProvider.notifier)
+        .setThemeStyle(AppThemeStyle.light);
     expect(container.read(appThemeModeProvider), ThemeMode.light);
   });
 }

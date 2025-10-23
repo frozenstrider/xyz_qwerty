@@ -1,11 +1,12 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reader_app/data/mock_repository.dart';
 import 'package:reader_app/domain/models/library_models.dart';
 import 'package:reader_app/features/library/providers/library_providers.dart';
 
-final searchControllerProvider = StateNotifierProvider<SearchController, SearchState>((ref) {
+final searchControllerProvider =
+    StateNotifierProvider<SearchController, SearchState>((ref) {
   final repository = ref.watch(libraryRepositoryProvider);
   return SearchController(repository);
 });
@@ -87,7 +88,8 @@ class SearchController extends StateNotifier<SearchState> {
     _applyFilters(genres: <String>{}, tags: <String>{});
   }
 
-  void _applyFilters({List<MangaSeries>? base, Set<String>? genres, Set<String>? tags}) {
+  void _applyFilters(
+      {List<MangaSeries>? base, Set<String>? genres, Set<String>? tags}) {
     final activeGenres = genres ?? state.selectedGenres;
     final activeTags = tags ?? state.selectedTags;
     final source = base ?? _latestResults;
@@ -95,7 +97,8 @@ class SearchController extends StateNotifier<SearchState> {
     var filtered = source;
     if (activeGenres.isNotEmpty) {
       filtered = filtered
-          .where((series) => series.genres.any((genre) => activeGenres.contains(genre)))
+          .where((series) =>
+              series.genres.any((genre) => activeGenres.contains(genre)))
           .toList(growable: false);
     }
     if (activeTags.isNotEmpty) {

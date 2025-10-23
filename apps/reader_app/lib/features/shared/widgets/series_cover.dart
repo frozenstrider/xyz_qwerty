@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:reader_app/domain/models/library_models.dart';
 
 class SeriesCover extends StatelessWidget {
-  const SeriesCover({super.key, required this.series, this.aspectRatio = 3 / 4, this.borderRadius = const BorderRadius.all(Radius.circular(24)), this.showWatermark = true});
+  const SeriesCover(
+      {super.key,
+      required this.series,
+      this.aspectRatio = 3 / 4,
+      this.borderRadius = const BorderRadius.all(Radius.circular(24)),
+      this.showWatermark = true});
 
   final MangaSeries series;
   final double aspectRatio;

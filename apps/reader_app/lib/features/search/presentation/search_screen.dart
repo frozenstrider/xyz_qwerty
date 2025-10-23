@@ -30,22 +30,26 @@ class SearchScreen extends ConsumerWidget {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(72),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, 0, SpacingTokens.lg, SpacingTokens.md),
+            padding: const EdgeInsets.fromLTRB(
+                SpacingTokens.lg, 0, SpacingTokens.lg, SpacingTokens.md),
             child: TextField(
               onChanged: searchController.setQuery,
               decoration: InputDecoration(
                 hintText: 'Search titles, genres, or tags',
                 prefixIcon: const Icon(Icons.search_rounded),
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surface.withOpacity(0.6),
-                border: OutlineInputBorder(borderRadius: RadiusTokens.lg, borderSide: BorderSide.none),
+                fillColor:
+                    Theme.of(context).colorScheme.surface.withOpacity(0.6),
+                border: OutlineInputBorder(
+                    borderRadius: RadiusTokens.lg, borderSide: BorderSide.none),
               ),
             ),
           ),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.xl),
+        padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg,
+            SpacingTokens.lg, SpacingTokens.xl),
         children: [
           _FilterSection(
             title: 'Genres',
@@ -62,25 +66,33 @@ class SearchScreen extends ConsumerWidget {
           ),
           const SizedBox(height: SpacingTokens.xl),
           if (searchState.isSearching)
-            const Center(child: Padding(padding: EdgeInsets.all(SpacingTokens.xl), child: CircularProgressIndicator.adaptive())),
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(SpacingTokens.xl),
+                    child: CircularProgressIndicator.adaptive())),
           if (!searchState.isSearching && searchState.results.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: SpacingTokens.xl),
               child: Column(
                 children: [
-                  Icon(Icons.travel_explore_rounded, size: 48, color: Theme.of(context).colorScheme.primary),
+                  Icon(Icons.travel_explore_rounded,
+                      size: 48, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(height: SpacingTokens.md),
-                  Text('Search the marketplace', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Search the marketplace',
+                      style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: SpacingTokens.xs),
-                  Text('Try "sakura", "city", or "time" to explore curated picks.',
-                      textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+                  Text(
+                      'Try "sakura", "city", or "time" to explore curated picks.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ),
           for (final series in searchState.results)
             Padding(
               padding: const EdgeInsets.only(bottom: SpacingTokens.lg),
-              child: SizedBox(height: 360,
+              child: SizedBox(
+                height: 360,
                 child: SeriesCard(
                   series: series,
                   onTap: () => context.go('/title/'),
@@ -89,7 +101,8 @@ class SearchScreen extends ConsumerWidget {
             ),
         ],
       ),
-      floatingActionButton: (searchState.selectedGenres.isNotEmpty || searchState.selectedTags.isNotEmpty)
+      floatingActionButton: (searchState.selectedGenres.isNotEmpty ||
+              searchState.selectedTags.isNotEmpty)
           ? FloatingActionButton.extended(
               onPressed: searchController.clearFilters,
               label: const Text('Clear filters'),
@@ -101,7 +114,11 @@ class SearchScreen extends ConsumerWidget {
 }
 
 class _FilterSection extends StatelessWidget {
-  const _FilterSection({required this.title, required this.options, required this.selected, required this.onSelected});
+  const _FilterSection(
+      {required this.title,
+      required this.options,
+      required this.selected,
+      required this.onSelected});
 
   final String title;
   final List<String> options;
@@ -114,7 +131,9 @@ class _FilterSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(title,
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: SpacingTokens.sm),
         Wrap(
           spacing: 8,
@@ -132,4 +151,3 @@ class _FilterSection extends StatelessWidget {
     );
   }
 }
-

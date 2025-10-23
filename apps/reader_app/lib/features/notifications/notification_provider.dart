@@ -13,7 +13,8 @@ class NotificationState {
     );
   }
 
-  static NotificationState initial() => const NotificationState(entries: [], isRegistered: false);
+  static NotificationState initial() =>
+      const NotificationState(entries: [], isRegistered: false);
 }
 
 class NotificationController extends StateNotifier<NotificationState> {
@@ -38,6 +39,7 @@ extension on List<String> {
   }
 }
 
-final notificationProvider = StateNotifierProvider<NotificationController, NotificationState>((ref) {
+final notificationProvider =
+    StateNotifierProvider<NotificationController, NotificationState>((ref) {
   return NotificationController();
 });

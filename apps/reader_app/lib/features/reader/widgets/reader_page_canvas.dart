@@ -3,7 +3,13 @@ import 'package:reader_app/domain/models/reader_models.dart';
 import 'package:reader_app/features/reader/providers/reader_providers.dart';
 
 class ReaderPageCanvas extends StatelessWidget {
-  const ReaderPageCanvas({super.key, required this.page, required this.brightness, required this.contrast, required this.colorFilter, required this.fontScale});
+  const ReaderPageCanvas(
+      {super.key,
+      required this.page,
+      required this.brightness,
+      required this.contrast,
+      required this.colorFilter,
+      required this.fontScale});
 
   final ReaderPage page;
   final double brightness;
@@ -69,7 +75,8 @@ class ReaderPageCanvas extends StatelessWidget {
     }
 
     return DecoratedBox(
-      decoration: BoxDecoration(color: overlay.withOpacity(opacity.clamp(0, 0.7))),
+      decoration:
+          BoxDecoration(color: overlay.withOpacity(opacity.clamp(0, 0.7))),
     );
   }
 

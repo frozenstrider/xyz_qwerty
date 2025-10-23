@@ -16,26 +16,28 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.lg, SpacingTokens.xl),
+        padding: const EdgeInsets.fromLTRB(SpacingTokens.lg, SpacingTokens.lg,
+            SpacingTokens.lg, SpacingTokens.xl),
         children: [
-          Text('Appearance', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Appearance',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: SpacingTokens.md),
           SegmentedButton<AppThemeStyle>(
             segments: const [
-              ButtonSegment(value: AppThemeStyle.light, icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
-              ButtonSegment(value: AppThemeStyle.dark, icon: Icon(Icons.dark_mode_rounded), label: Text('Dark')),
-              ButtonSegment(value: AppThemeStyle.liquid, icon: Icon(Icons.blur_on_rounded), label: Text('Glass')),
-              ButtonSegment(value: AppThemeStyle.comic, icon: Icon(Icons.auto_stories_rounded), label: Text('Comic')),
+              ButtonSegment(
+                  value: AppThemeStyle.light,
+                  icon: Icon(Icons.light_mode_rounded),
+                  label: Text('Light')),
+              ButtonSegment(
+                  value: AppThemeStyle.dark,
+                  icon: Icon(Icons.dark_mode_rounded),
+                  label: Text('Dark')),
             ],
             selected: {settings.themeStyle},
             onSelectionChanged: (s) => controller.setThemeStyle(s.first),
-          ),
-          const SizedBox(height: SpacingTokens.md),
-          SwitchListTile.adaptive(
-            value: settings.liquidGlassEnabled,
-            onChanged: controller.toggleLiquidGlass,
-            title: const Text('Enable Liquid Glass effects'),
-            subtitle: const Text('Translucent surfaces with depth and blur'),
           ),
           SwitchListTile.adaptive(
             value: settings.reduceMotion,
@@ -50,18 +52,27 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('Enable sakura and special event layers'),
           ),
           const Divider(height: SpacingTokens.xl),
-          Text('Reader', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Reader',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: SpacingTokens.md),
           ListTile(
             title: const Text('Default reading mode'),
             subtitle: Text(settings.defaultReaderMode.name),
             trailing: DropdownButton<ReaderMode>(
               value: settings.defaultReaderMode,
-              onChanged: (mode) { if (mode != null) controller.setDefaultReaderMode(mode); },
+              onChanged: (mode) {
+                if (mode != null) controller.setDefaultReaderMode(mode);
+              },
               items: const [
-                DropdownMenuItem(value: ReaderMode.vertical, child: Text('Vertical scroll')),
-                DropdownMenuItem(value: ReaderMode.single, child: Text('Page by page')),
-                DropdownMenuItem(value: ReaderMode.double, child: Text('Two-page spread')),
+                DropdownMenuItem(
+                    value: ReaderMode.vertical, child: Text('Vertical scroll')),
+                DropdownMenuItem(
+                    value: ReaderMode.single, child: Text('Page by page')),
+                DropdownMenuItem(
+                    value: ReaderMode.double, child: Text('Two-page spread')),
               ],
             ),
           ),
@@ -75,27 +86,39 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(settings.pageTurnAnimation.name),
             trailing: DropdownButton<PageTurnAnimation>(
               value: settings.pageTurnAnimation,
-              onChanged: (animation) => controller.setPageTurnAnimation(animation ?? settings.pageTurnAnimation),
+              onChanged: (animation) => controller.setPageTurnAnimation(
+                  animation ?? settings.pageTurnAnimation),
               items: const [
-                DropdownMenuItem(value: PageTurnAnimation.slide, child: Text('Slide')), 
-                DropdownMenuItem(value: PageTurnAnimation.fade, child: Text('Fade')), 
-                DropdownMenuItem(value: PageTurnAnimation.curl, child: Text('Curl preview')), 
+                DropdownMenuItem(
+                    value: PageTurnAnimation.slide, child: Text('Slide')),
+                DropdownMenuItem(
+                    value: PageTurnAnimation.fade, child: Text('Fade')),
+                DropdownMenuItem(
+                    value: PageTurnAnimation.curl, child: Text('Curl preview')),
               ],
             ),
           ),
           const Divider(height: SpacingTokens.xl),
-          Text('Typography', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Typography',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: SpacingTokens.md),
           ListTile(
             title: const Text('Dialogue font'),
             subtitle: Text(settings.fontFamily),
             trailing: DropdownButton<String>(
               value: settings.fontFamily,
-              onChanged: (value) { if (value != null) controller.setFontFamily(value); },
+              onChanged: (value) {
+                if (value != null) controller.setFontFamily(value);
+              },
               items: const [
                 DropdownMenuItem(value: 'WorkSans', child: Text('Work Sans')),
-                DropdownMenuItem(value: 'SourceSans3', child: Text('Source Sans 3')),
-                DropdownMenuItem(value: 'M PLUS Rounded 1c', child: Text('M PLUS Rounded')),
+                DropdownMenuItem(
+                    value: 'SourceSans3', child: Text('Source Sans 3')),
+                DropdownMenuItem(
+                    value: 'M PLUS Rounded 1c', child: Text('M PLUS Rounded')),
               ],
             ),
           ),
@@ -109,7 +132,9 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(settings.languageCode.toUpperCase()),
             trailing: DropdownButton<String>(
               value: settings.languageCode,
-              onChanged: (value) { if (value != null) controller.setLanguage(value); },
+              onChanged: (value) {
+                if (value != null) controller.setLanguage(value);
+              },
               items: const [
                 DropdownMenuItem(value: 'en', child: Text('English')),
                 DropdownMenuItem(value: 'ja', child: Text('Japanese')),
@@ -122,5 +147,3 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
-
-

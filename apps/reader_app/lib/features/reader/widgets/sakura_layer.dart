@@ -11,16 +11,18 @@ class SakuraLayer extends StatefulWidget {
   State<SakuraLayer> createState() => _SakuraLayerState();
 }
 
-class _SakuraLayerState extends State<SakuraLayer> with SingleTickerProviderStateMixin {
+class _SakuraLayerState extends State<SakuraLayer>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late List<_Petal> _petals;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 16))
-      ..addListener(() => setState(() {}))
-      ..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 16))
+          ..addListener(() => setState(() {}))
+          ..repeat();
     _petals = List.generate(18, (index) => _Petal.random(Random(index * 7)));
   }
 
@@ -64,9 +66,11 @@ class _SakuraPainter extends CustomPainter {
     for (final petal in petals) {
       final position = petal.position(progress, size);
       paint.color = petal.color;
-      final rect = Rect.fromCenter(center: position, width: petal.size, height: petal.size * 0.6);
+      final rect = Rect.fromCenter(
+          center: position, width: petal.size, height: petal.size * 0.6);
       final path = Path()
-        ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(petal.size / 2)))
+        ..addRRect(
+            RRect.fromRectAndRadius(rect, Radius.circular(petal.size / 2)))
         ..close();
       canvas.save();
       canvas.translate(position.dx, position.dy);
@@ -78,11 +82,18 @@ class _SakuraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SakuraPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _SakuraPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 class _Petal {
-  _Petal({required this.seed, required this.size, required this.speed, required this.amplitude, required this.baseX, required this.startOffset});
+  _Petal(
+      {required this.seed,
+      required this.size,
+      required this.speed,
+      required this.amplitude,
+      required this.baseX,
+      required this.startOffset});
 
   final double seed;
   final double size;
@@ -111,5 +122,7 @@ class _Petal {
 
   double rotation(double progress) => sin((progress + seed) * pi * 2) * 0.6;
 
-  Color get color => Color.lerp(const Color(0xFFFFBDD9), const Color(0xFFFF4DA6), seed)!.withOpacity(0.45);
+  Color get color =>
+      Color.lerp(const Color(0xFFFFBDD9), const Color(0xFFFF4DA6), seed)!
+          .withOpacity(0.45);
 }

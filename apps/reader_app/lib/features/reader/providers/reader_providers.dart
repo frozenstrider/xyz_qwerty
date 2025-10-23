@@ -6,12 +6,15 @@ import 'package:reader_app/features/settings/providers/settings_provider.dart';
 
 import '../../library/providers/library_providers.dart';
 
-final readerChapterProvider = FutureProvider.family<MangaChapter, String>((ref, id) async {
+final readerChapterProvider =
+    FutureProvider.family<MangaChapter, String>((ref, id) async {
   final repository = ref.watch(libraryRepositoryProvider);
   return repository.fetchChapter(id);
 });
 
-final readerViewStateProvider = StateNotifierProvider.family<ReaderController, ReaderViewState, String>((ref, chapterId) {
+final readerViewStateProvider =
+    StateNotifierProvider.family<ReaderController, ReaderViewState, String>(
+        (ref, chapterId) {
   final settings = ref.watch(settingsProvider);
   return ReaderController(initialMode: settings.defaultReaderMode);
 });
@@ -69,7 +72,8 @@ class ReaderViewState {
 enum ReaderColorFilter { neutral, sepia, dusk, midnight }
 
 class ReaderController extends StateNotifier<ReaderViewState> {
-  ReaderController({required ReaderMode initialMode}) : super(ReaderViewState.initial(mode: initialMode));
+  ReaderController({required ReaderMode initialMode})
+      : super(ReaderViewState.initial(mode: initialMode));
 
   void setMode(ReaderMode mode, int maxPages) {
     if (maxPages <= 0) {
@@ -79,7 +83,8 @@ class ReaderController extends StateNotifier<ReaderViewState> {
     final clampedPage = switch (mode) {
       ReaderMode.vertical => state.pageIndex,
       ReaderMode.single => state.pageIndex.clamp(0, maxPages - 1).toInt(),
-      ReaderMode.double => ((state.pageIndex ~/ 2) * 2).clamp(0, maxPages - 1).toInt(),
+      ReaderMode.double =>
+        ((state.pageIndex ~/ 2) * 2).clamp(0, maxPages - 1).toInt(),
     };
     state = state.copyWith(mode: mode, pageIndex: clampedPage);
   }
@@ -96,10 +101,8 @@ class ReaderController extends StateNotifier<ReaderViewState> {
 
   void setContrast(double value) => state = state.copyWith(contrast: value);
 
-  void setColorFilter(ReaderColorFilter filter) => state = state.copyWith(colorFilter: filter);
+  void setColorFilter(ReaderColorFilter filter) =>
+      state = state.copyWith(colorFilter: filter);
 
   void setFontScale(double value) => state = state.copyWith(fontScale: value);
 }
-
-
-

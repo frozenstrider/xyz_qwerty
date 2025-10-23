@@ -20,8 +20,8 @@ class RadiusTokens {
   static const BorderRadius pill = BorderRadius.all(Radius.circular(999));
   static const BorderRadius sm = BorderRadius.all(Radius.circular(12));
   static const BorderRadius md = BorderRadius.all(Radius.circular(20));
-  static const BorderRadius lg = BorderRadius.all(Radius.circular(28));
-  static const BorderRadius xl = BorderRadius.all(Radius.circular(40));
+  static const BorderRadius lg = BorderRadius.all(Radius.circular(24));
+  static const BorderRadius xl = BorderRadius.all(Radius.circular(32));
 }
 
 class BlurTokens {
@@ -37,11 +37,19 @@ class ElevationTokens {
   const ElevationTokens._();
 
   static const List<BoxShadow> surface = [
-    BoxShadow(color: Colors.black26, blurRadius: 24, spreadRadius: -8, offset: Offset(0, 12)),
+    BoxShadow(
+        color: Colors.black26,
+        blurRadius: 24,
+        spreadRadius: -8,
+        offset: Offset(0, 12)),
   ];
 
   static const List<BoxShadow> hover = [
-    BoxShadow(color: Colors.black12, blurRadius: 30, spreadRadius: -10, offset: Offset(0, 16)),
+    BoxShadow(
+        color: Colors.black12,
+        blurRadius: 30,
+        spreadRadius: -10,
+        offset: Offset(0, 16)),
   ];
 }
 
