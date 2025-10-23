@@ -24,10 +24,11 @@ class SettingsScreen extends ConsumerWidget {
             segments: const [
               ButtonSegment(value: AppThemeStyle.light, icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
               ButtonSegment(value: AppThemeStyle.dark, icon: Icon(Icons.dark_mode_rounded), label: Text('Dark')),
-              ButtonSegment(value: AppThemeStyle.liquid, icon: Icon(Icons.blur_on_rounded), label: Text('Liquid Glass')),
+              ButtonSegment(value: AppThemeStyle.liquid, icon: Icon(Icons.blur_on_rounded), label: Text('Glass')),
+              ButtonSegment(value: AppThemeStyle.comic, icon: Icon(Icons.auto_stories_rounded), label: Text('Comic')),
             ],
             selected: {settings.themeStyle},
-            onSelectionChanged: (selection) => controller.setThemeStyle(selection.first),
+            onSelectionChanged: (s) => controller.setThemeStyle(s.first),
           ),
           const SizedBox(height: SpacingTokens.md),
           SwitchListTile.adaptive(

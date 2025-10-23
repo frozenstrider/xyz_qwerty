@@ -7,7 +7,8 @@ import 'package:flutter/material.dart';
 import '../design_system/tokens.dart';
 
 const _kTitleBarHeight = 44.0;
-const _kWindowRadius = 26.0;
+const _kWindowRadius = 34.0;
+const _kWindowPadding = 12.0;
 
 class AppWindowFrame extends StatelessWidget {
   const AppWindowFrame({super.key, required this.child});
@@ -27,17 +28,28 @@ class AppWindowFrame extends StatelessWidget {
       child: WindowBorder(
         color: Colors.white.withOpacity(0.08),
         width: 1,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(_kWindowRadius),
-          child: Stack(
-            alignment: Alignment.topLeft,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: _kTitleBarHeight),
-                child: child,
-              ),
-              const _TitleBar(),
-            ],
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kWindowRadius),
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.04),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(_kWindowRadius),
+            child: Stack(
+              alignment: Alignment.topLeft,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _kWindowPadding,
+                    _kTitleBarHeight + _kWindowPadding,
+                    _kWindowPadding,
+                    _kWindowPadding,
+                  ),
+                  child: child,
+                ),
+                const _TitleBar(),
+              ],
+            ),
           ),
         ),
       ),

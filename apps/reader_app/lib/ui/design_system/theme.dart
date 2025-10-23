@@ -10,6 +10,20 @@ import '../../domain/models/settings_models.dart';
 import '../../features/settings/providers/settings_provider.dart';
 import 'tokens.dart';
 
+enum SurfaceVariant { glass, solid, comic }
+
+class SurfaceStyle extends ThemeExtension<SurfaceStyle> {
+  const SurfaceStyle({required this.variant});
+
+  final SurfaceVariant variant;
+
+  @override
+  SurfaceStyle copyWith({SurfaceVariant? variant}) => SurfaceStyle(variant: variant ?? this.variant);
+
+  @override
+  ThemeExtension<SurfaceStyle> lerp(ThemeExtension<SurfaceStyle>? other, double t) => this;
+}
+
 class AppThemeBundle {
   const AppThemeBundle({required this.light, required this.dark});
 
@@ -19,15 +33,48 @@ class AppThemeBundle {
 
 final appThemeBundleProvider = Provider<AppThemeBundle>((ref) {
   final settings = ref.watch(settingsProvider);
-  final glassLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: true);
-  final glassDark = _buildTheme(brightness: Brightness.dark, settings: settings, liquid: true);
-  final solidLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false);
-  final solidDark = _buildTheme(brightness: Brightness.dark, settings: settings, liquid: false);
+  final glassLight = _buildTheme(
+    brightness: Brightness.light,
+    settings: settings,
+    liquid: true,
+    variant: SurfaceVariant.glass,
+  );
+  final glassDark = _buildTheme(
+    brightness: Brightness.dark,
+    settings: settings,
+    liquid: true,
+    variant: SurfaceVariant.glass,
+  );
+  final solidLight = _buildTheme(
+    brightness: Brightness.light,
+    settings: settings,
+    liquid: false,
+    variant: SurfaceVariant.solid,
+  );
+  final solidDark = _buildTheme(
+    brightness: Brightness.dark,
+    settings: settings,
+    liquid: false,
+    variant: SurfaceVariant.solid,
+  );
+  final comicLight = _buildTheme(
+    brightness: Brightness.light,
+    settings: settings,
+    liquid: false,
+    variant: SurfaceVariant.comic,
+  );
+  final comicDark = _buildTheme(
+    brightness: Brightness.dark,
+    settings: settings,
+    liquid: false,
+    variant: SurfaceVariant.comic,
+  );
 
   return switch (settings.themeStyle) {
     AppThemeStyle.light => AppThemeBundle(light: solidLight, dark: solidDark),
     AppThemeStyle.dark => AppThemeBundle(light: solidLight, dark: solidDark),
     AppThemeStyle.liquid => AppThemeBundle(light: glassLight, dark: glassDark),
+    AppThemeStyle.comic => AppThemeBundle(light: comicLight, dark: comicDark),
   };
 });
 
@@ -37,6 +84,7 @@ final appThemeModeProvider = Provider<ThemeMode>((ref) {
     AppThemeStyle.light => ThemeMode.light,
     AppThemeStyle.dark => ThemeMode.dark,
     AppThemeStyle.liquid => ThemeMode.system,
+    AppThemeStyle.comic => ThemeMode.light,
   };
 });
 
@@ -49,7 +97,12 @@ TextTheme _typography(Brightness brightness, String fontFamily) {
   }
 }
 
-ThemeData _buildTheme({required Brightness brightness, required AppSettings settings, required bool liquid}) {
+ThemeData _buildTheme({
+  required Brightness brightness,
+  required AppSettings settings,
+  required bool liquid,
+  required SurfaceVariant variant,
+}) {
   final seedColor = switch (brightness) {
     Brightness.light => const Color(0xFF5E7CE2),
     Brightness.dark => const Color(0xFF8AA9FF),
@@ -57,14 +110,15 @@ ThemeData _buildTheme({required Brightness brightness, required AppSettings sett
   final scheme = ColorScheme.fromSeed(seedColor: seedColor, brightness: brightness);
   final textTheme = _typography(brightness, settings.fontFamily);
   final highContrast = settings.highContrast;
+  final isComic = variant == SurfaceVariant.comic;
 
   final surfaceBlend = liquid
       ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.28 : 0.18)
-      : scheme.surface;
+      : (isComic ? const Color(0xFFFFFFFF) : scheme.surface);
 
   final cardColor = liquid
       ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.24 : 0.16)
-      : scheme.surface;
+      : (isComic ? const Color(0xFFFFFFFF) : scheme.surface);
 
   final dividerColor = scheme.outlineVariant.withOpacity(highContrast ? 0.8 : 0.25);
 
@@ -97,11 +151,13 @@ ThemeData _buildTheme({required Brightness brightness, required AppSettings sett
     ),
     cardTheme: CardTheme(
       color: cardColor,
-      elevation: liquid ? 0 : 1,
+      elevation: liquid ? 0 : (isComic ? 0 : 1),
       margin: const EdgeInsets.all(0),
       shape: RoundedRectangleBorder(
         borderRadius: RadiusTokens.lg,
-        side: BorderSide(color: Colors.white.withOpacity(liquid ? 0.18 : (highContrast ? 0.45 : 0.12))),
+        side: isComic
+            ? const BorderSide(color: Colors.black, width: 1.4)
+            : BorderSide(color: Colors.white.withOpacity(liquid ? 0.18 : (highContrast ? 0.45 : 0.12))),
       ),
       shadowColor: liquid ? Colors.black.withOpacity(0.25) : Colors.black.withOpacity(0.15),
     ),
@@ -160,6 +216,9 @@ ThemeData _buildTheme({required Brightness brightness, required AppSettings sett
       linearTrackColor: scheme.primary.withOpacity(0.1),
       circularTrackColor: scheme.primary.withOpacity(0.15),
     ),
+    extensions: <ThemeExtension<dynamic>>[
+      SurfaceStyle(variant: variant),
+    ],
   );
 }
 

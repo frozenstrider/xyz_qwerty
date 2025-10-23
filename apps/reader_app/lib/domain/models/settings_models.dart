@@ -1,6 +1,6 @@
 import '../models/reader_models.dart';
 
-enum AppThemeStyle { light, dark, liquid }
+enum AppThemeStyle { light, dark, liquid, comic }
 
 enum PageTurnAnimation { slide, fade, curl }
 

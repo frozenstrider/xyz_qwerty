@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../theme.dart' show SurfaceStyle, SurfaceVariant;
 import '../tokens.dart';
 
 class GlassCard extends StatelessWidget {
@@ -15,16 +16,30 @@ class GlassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final variant = Theme.of(context).extension<SurfaceStyle>()?.variant ?? SurfaceVariant.glass;
+    if (variant == SurfaceVariant.comic) {
+      return _ComicCard(
+        borderRadius: borderRadius,
+        padding: padding,
+        onTap: onTap,
+        child: child,
+      );
+    }
+
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final bool isDark = theme.brightness == Brightness.dark;
-    final Color baseColor = isDark ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.14);
+    final Color surfaceBlend = Color.alphaBlend(
+      scheme.surfaceVariant.withOpacity(isDark ? 0.22 : 0.12),
+      scheme.surface.withOpacity(isDark ? 0.72 : 0.48),
+    );
     final gradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        baseColor,
-        baseColor.withOpacity(0.18),
-        Colors.white.withOpacity(isDark ? 0.03 : 0.07),
+        surfaceBlend.withOpacity(isDark ? 0.92 : 0.82),
+        surfaceBlend.withOpacity(isDark ? 0.78 : 0.64),
+        surfaceBlend.withOpacity(isDark ? 0.62 : 0.46),
       ],
       stops: const [0, 0.55, 1],
     );
@@ -32,19 +47,19 @@ class GlassCard extends StatelessWidget {
     final glassDecoration = BoxDecoration(
       gradient: gradient,
       borderRadius: borderRadius,
-      border: Border.all(color: Colors.white.withOpacity(isDark ? 0.16 : 0.22)),
+      border: Border.all(color: Colors.white.withOpacity(isDark ? 0.08 : 0.16)),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.45 : 0.12),
+          color: Colors.black.withOpacity(isDark ? 0.32 : 0.08),
           offset: const Offset(0, 18),
-          blurRadius: 42,
-          spreadRadius: -16,
+          blurRadius: 36,
+          spreadRadius: -20,
         ),
         BoxShadow(
-          color: Colors.white.withOpacity(isDark ? 0.05 : 0.18),
-          offset: const Offset(-6, -6),
-          blurRadius: 24,
-          spreadRadius: -18,
+          color: Colors.white.withOpacity(isDark ? 0.04 : 0.12),
+          offset: const Offset(-4, -4),
+          blurRadius: 20,
+          spreadRadius: -22,
         ),
       ],
     );
@@ -55,7 +70,7 @@ class GlassCard extends StatelessWidget {
         center: Alignment.topLeft,
         radius: 1.2,
         colors: [
-          Colors.white.withOpacity(isDark ? 0.16 : 0.28),
+          Colors.white.withOpacity(isDark ? 0.08 : 0.18),
           Colors.transparent,
         ],
       ),
@@ -82,5 +97,44 @@ class GlassCard extends StatelessWidget {
       );
     }
     return content;
+  }
+}
+
+class _ComicCard extends StatelessWidget {
+  const _ComicCard({
+    required this.child,
+    required this.borderRadius,
+    this.padding,
+    this.onTap,
+  });
+
+  final Widget child;
+  final BorderRadius borderRadius;
+  final EdgeInsetsGeometry? padding;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final box = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: borderRadius,
+        border: Border.all(color: Colors.black, width: 1.4),
+      ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(SpacingTokens.md),
+        child: child,
+      ),
+    );
+
+    if (onTap == null) {
+      return box;
+    }
+
+    return InkWell(
+      borderRadius: borderRadius,
+      onTap: onTap,
+      child: box,
+    );
   }
 }

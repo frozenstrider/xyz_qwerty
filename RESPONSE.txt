@@ -1,0 +1,493 @@
+Awesome — I pulled your repo and looked at the Flutter client. I can see the reader app under `apps/reader_app`, the design-system `Glass*` widgets, the custom desktop frame using `bitsdojo_window`, and the router/shell wiring. I also read the `error.txt` you checked in; it matches the layout explosions you described. Below is (1) the root-cause analysis, (2) a **drop‑in fix** for the crash, and (3) a **refactor pack** that adds your **Glass ⇄ Comic** theme toggle and nudges the UX toward a “Netflix‑for‑manga” feel while staying native and fast.
+
+---
+
+## What’s in the repo (quick orientation)
+
+* **Desktop wrapper**: `main.dart` boots `MangaDesktopApp`, wraps Flutter in `AppWindowFrame` (bitsdojo; min size, custom title bar).
+* **Theming**: `ui/design_system/theme.dart` builds a *liquid* (glass) and *solid* pair and returns a bundle + theme mode from settings. Typography via Google Fonts.
+* **Navigation & shell**: `app.dart` uses the theme bundle; `router/app_router.dart` uses `GoRouter`; `MainShell` renders a glass desktop sidebar (≥1100 px) or a glass bottom nav (mobile).
+* **Home**: `features/home/presentation/home_screen.dart` has `_MarketplaceHero`, horizontal carousels, and a long “All Manga” list that reuses `SeriesCard`.
+* **Cards**: `SeriesCard` measures cover height from available width via `LayoutBuilder` and stacks overlays/badges on top. `SeriesCover` draws a gradient placeholder cover (no network yet).
+* **Settings**: `SettingsScreen` exposes theme style (light/dark/liquid) + toggles, backed by `settingsProvider` and `AppSettings`.
+* **Your error log**: “**BoxConstraints forces an infinite height**… offending constraints `w=240, h=Infinity` … stack mentions `glass_card.dart:36` and `Stack`” (plus the common “non‑zero flex with unbounded constraints”).
+* The repo’s **status note** (included at root) also calls out `_MarketplaceHero` + `SeriesCard` misuse inside scrollables.
+
+---
+
+## Why it crashes (root cause)
+
+* `_MarketplaceHero` builds either a **Row** or **Column**, but its children are **`Flexible`** in both cases. When the hero is placed inside the parent **`Column`** that lives in a **`SliverToBoxAdapter`** (shrink‑wrapped vertical context), the **incoming height is unbounded**, and Flex children with non‑zero flex assert. That’s the “RenderFlex … non‑zero flex but incoming height constraints are unbounded” error you’re seeing.
+* Separately, `SeriesCard` is safe *when* the parent gives it a finite height (your carousels do), but in some vertical contexts any missing wrapper can still produce `h=∞` to the internal `Stack`. Your `error.txt` shows `w=240, h=∞` where a parent set width but not height.
+
+---
+
+## Minimal, surgical fix (apply first)
+
+> Goal: **No more flex in shrink‑wrapped vertical contexts**. Use explicit sizes/aspect ratios; keep GlassCard purely decorative.
+
+**Patch 1 — Rework `_MarketplaceHero` to avoid `Flexible/Expanded` in the Column path**
+Drop the flex children and give the poster and text explicit/bounded sizes. Keep Row on wide screens with `Expanded` (safe because width is bounded), but **never** use flex in the Column path.
+
+```diff
+diff --git a/apps/reader_app/lib/features/home/presentation/home_screen.dart b/apps/reader_app/lib/features/home/presentation/home_screen.dart
+@@
+-class _MarketplaceHero extends ConsumerWidget {
+-  const _MarketplaceHero();
+-  @override
+-  Widget build(BuildContext context, WidgetRef ref) {
+-    final theme = Theme.of(context);
+-    return GlassCard(
+-      borderRadius: BorderRadius.circular(40),
+-      padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
+-      blurSigma: BlurTokens.thick,
+-      child: LayoutBuilder(
+-        builder: (context, constraints) {
+-          final isWide = constraints.maxWidth > 900;
+-          final content = [
+-            Flexible(fit: FlexFit.loose, flex: isWide ? 3 : 4, child: Column(
+-              crossAxisAlignment: CrossAxisAlignment.start,
+-              mainAxisAlignment: MainAxisAlignment.center,
+-              children: [
+-                /* ... */
+-              ],
+-            )),
+-            if (isWide) const SizedBox(width: 32),
+-            if (isWide) Flexible(fit: FlexFit.loose, flex: 2, child: Align(
+-              alignment: Alignment.centerRight,
+-              child: Container(width: 220, height: 220, /* ... */),
+-            )),
+-          ];
+-          return isWide ? Row(children: content) : Column(children: content);
+-        },
+-      ),
+-    );
+-  }
+-}
++class _MarketplaceHero extends StatelessWidget {
++  const _MarketplaceHero();
++  @override
++  Widget build(BuildContext context) {
++    final theme = Theme.of(context);
++    return LayoutBuilder(builder: (context, c) {
++      final isWide = c.maxWidth > 900;
++      final poster = SizedBox(
++        width: isWide ? 260 : double.infinity,
++        height: isWide ? 220 : 180,
++        child: DecoratedBox(
++          decoration: BoxDecoration(
++            borderRadius: BorderRadius.circular(32),
++            gradient: const LinearGradient(
++              begin: Alignment.topLeft, end: Alignment.bottomRight,
++              colors: [Color(0xFFFFA8E7), Color(0xFF7D8CFF)],
++            ),
++            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 42, offset: Offset(0, 18))],
++          ),
++          child: const Icon(Icons.collections_bookmark_outlined, color: Colors.white, size: 96),
++        ),
++      );
++      final text = ConstrainedBox(
++        constraints: const BoxConstraints(maxWidth: 720),
++        child: Column(
++          mainAxisSize: MainAxisSize.min,
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            Container(
++              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
++              decoration: BoxDecoration(
++                borderRadius: RadiusTokens.pill,
++                gradient: LinearGradient(colors: [theme.colorScheme.primary, theme.colorScheme.secondary]),
++              ),
++              child: Text('RAW MANGA MARKETPLACE',
++                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
++            ),
++            const SizedBox(height: 18),
++            Text('Authentic Japanese Manga',
++              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
++            const SizedBox(height: 12),
++            Text('Purchase official releases directly from Japanese publishers.\n'
++                 'Support creators and enjoy manga in its original form.',
++                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.92))),
++            const SizedBox(height: 24),
++            ElevatedButton.icon(onPressed: () => context.go('/search'),
++                icon: const Icon(Icons.explore_rounded), label: const Text('Explore catalog')),
++          ],
++        ),
++      );
++      return GlassCard(
++        borderRadius: BorderRadius.circular(40),
++        padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
++        blurSigma: BlurTokens.thick,
++        child: isWide
++            ? Row(mainAxisSize: MainAxisSize.min, children: [Expanded(child: text), const SizedBox(width: 32), poster])
++            : Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
++                children: [text, const SizedBox(height: 16), poster]),
++      );
++    });
++  }
++}
+```
+
+**Patch 2 — Keep `GlassCard` purely decorative**
+Your `GlassCard` is already a decoration wrapper (no sizing). Leave it that way (✅). For any place the card content scrolls, keep sizing decisions in the parent (as you already do for carousels: `SizedBox(height: 360, child: SeriesCard(...))`).
+
+**Patch 3 — Add a guard in `SeriesCard`**
+`SeriesCard` is mostly fine; add a small guard so that if a parent ever forgets to bound height, we default to an **aspect‑ratio box** instead of allowing `h=∞`.
+
+```diff
+--- a/apps/reader_app/lib/features/shared/widgets/series_card.dart
++++ b/apps/reader_app/lib/features/shared/widgets/series_card.dart
+@@
+-      LayoutBuilder(
+-        builder: (context, constraints) {
+-          final width = constraints.maxWidth;
+-          final ratio = compact ? 1.0 : 3 / 4;
+-          final height = width / ratio;
+-          return SizedBox(
++      LayoutBuilder(builder: (context, constraints) {
++        final ratio = compact ? 1.0 : 3 / 4;
++        if (!constraints.hasBoundedHeight) {
++          // Fallback: size by aspect ratio if height is unbounded.
++          return AspectRatio(
++            aspectRatio: ratio,
++            child: Stack(fit: StackFit.expand, children: [
++              SeriesCover(series: series, aspectRatio: ratio, borderRadius: borderRadius, showWatermark: false),
++              _Overlay(badges: badges, borderRadius: borderRadius),
++            ]),
++          );
++        }
++        final width = constraints.maxWidth;
++        final height = width / ratio;
++        return SizedBox(
+             width: width,
+             height: height,
+-            child: Stack(
+-              fit: StackFit.expand,
+-              children: [
+-                SeriesCover(/* ... */),
+-                DecoratedBox(/* gradient ... */),
+-                if (badges != null && badges!.isNotEmpty) Positioned(/* ... */),
+-              ],
+-            ),
+-          );
+-        },
+-      ),
++            child: Stack(fit: StackFit.expand, children: [
++              SeriesCover(series: series, aspectRatio: ratio, borderRadius: borderRadius, showWatermark: false),
++              _Overlay(badges: badges, borderRadius: borderRadius),
++            ]),
++          );
++      }),
+```
+
+…and extract that overlay into a tiny private widget for clarity:
+
+```dart
+class _Overlay extends StatelessWidget {
+  const _Overlay({required this.badges, required this.borderRadius});
+  final List<Widget>? badges;
+  final BorderRadius borderRadius;
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: [
+      DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [Colors.black.withOpacity(0.08), Colors.black.withOpacity(0.35)],
+          ),
+        ),
+      ),
+      if (badges != null && badges!.isNotEmpty)
+        Positioned(
+          top: SpacingTokens.sm, left: SpacingTokens.sm, right: SpacingTokens.sm,
+          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: badges!),
+        ),
+    ]);
+  }
+}
+```
+
+With these three patches, the “unbounded flex” and `h=∞` failures stop while preserving your design. (The error log’s signature aligns with `_MarketplaceHero` and unbounded SeriesCard parents. )
+
+---
+
+## “Liquid Glass” ⇄ **“Comic”** theme toggle (white surface with hand‑drawn borders)
+
+You already centralize theme decisions in `theme.dart` and expose them via `appThemeBundleProvider` + `appThemeModeProvider`, with the active style chosen in `SettingsScreen`. We’ll extend that with a **new style** and a **tiny ThemeExtension** so components can switch their surface rendering without plumbing providers through every widget.
+
+### 1) Add a variant to settings
+
+```diff
+--- a/apps/reader_app/lib/domain/models/settings_models.dart
++++ b/apps/reader_app/lib/domain/models/settings_models.dart
+@@
+-enum AppThemeStyle { light, dark, liquid }
++enum AppThemeStyle { light, dark, liquid, comic }
+```
+
+(Defaults can remain the same.)
+
+### 2) Add a surface extension & Comic theme in `theme.dart`
+
+```diff
+--- a/apps/reader_app/lib/ui/design_system/theme.dart
++++ b/apps/reader_app/lib/ui/design_system/theme.dart
++enum SurfaceVariant { glass, solid, comic }
++
++class SurfaceStyle extends ThemeExtension<SurfaceStyle> {
++  const SurfaceStyle({required this.variant});
++  final SurfaceVariant variant;
++  @override SurfaceStyle copyWith({SurfaceVariant? variant}) =>
++      SurfaceStyle(variant: variant ?? this.variant);
++  @override ThemeExtension<SurfaceStyle> lerp(ThemeExtension<SurfaceStyle>? other, double t) => this;
++}
+@@
+ final appThemeBundleProvider = Provider((ref) {
+   final settings = ref.watch(settingsProvider);
+-  final glassLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: true);
+-  final glassDark = _buildTheme(brightness: Brightness.dark, settings: settings, liquid: true);
+-  final solidLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false);
+-  final solidDark = _buildTheme(brightness: Brightness.dark, settings: settings, liquid: false);
+-  return switch (settings.themeStyle) {
+-    AppThemeStyle.light => AppThemeBundle(light: solidLight, dark: solidDark),
+-    AppThemeStyle.dark => AppThemeBundle(light: solidLight, dark: solidDark),
+-    AppThemeStyle.liquid => AppThemeBundle(light: glassLight, dark: glassDark),
+-  };
++  final glassLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: true, variant: SurfaceVariant.glass);
++  final glassDark  = _buildTheme(brightness: Brightness.dark,  settings: settings, liquid: true, variant: SurfaceVariant.glass);
++  final solidLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false, variant: SurfaceVariant.solid);
++  final solidDark  = _buildTheme(brightness: Brightness.dark,  settings: settings, liquid: false, variant: SurfaceVariant.solid);
++  final comicLight = _buildTheme(brightness: Brightness.light, settings: settings, liquid: false, variant: SurfaceVariant.comic);
++  final comicDark  = _buildTheme(brightness: Brightness.dark,  settings: settings, liquid: false, variant: SurfaceVariant.comic);
++  return switch (settings.themeStyle) {
++    AppThemeStyle.light  => AppThemeBundle(light: solidLight, dark: solidDark),
++    AppThemeStyle.dark   => AppThemeBundle(light: solidLight, dark: solidDark),
++    AppThemeStyle.liquid => AppThemeBundle(light: glassLight, dark: glassDark),
++    AppThemeStyle.comic  => AppThemeBundle(light: comicLight, dark: comicDark),
++  };
+ });
+ 
+-final appThemeModeProvider = Provider((ref) {
++final appThemeModeProvider = Provider((ref) {
+   final style = ref.watch(settingsProvider.select((value) => value.themeStyle));
+   return switch (style) {
+-    AppThemeStyle.light => ThemeMode.light,
+-    AppThemeStyle.dark => ThemeMode.dark,
+-    AppThemeStyle.liquid => ThemeMode.system,
++    AppThemeStyle.light  => ThemeMode.light,
++    AppThemeStyle.dark   => ThemeMode.dark,
++    AppThemeStyle.liquid => ThemeMode.system,
++    AppThemeStyle.comic  => ThemeMode.light,
+   };
+ });
+ 
+-ThemeData _buildTheme({required Brightness brightness, required AppSettings settings, required bool liquid}) {
++ThemeData _buildTheme({
++  required Brightness brightness,
++  required AppSettings settings,
++  required bool liquid,
++  required SurfaceVariant variant,
++}) {
+   final seedColor = switch (brightness) {
+     Brightness.light => const Color(0xFF5E7CE2),
+     Brightness.dark => const Color(0xFF8AA9FF),
+   };
+   final scheme = ColorScheme.fromSeed(seedColor: seedColor, brightness: brightness);
+   final textTheme = _typography(brightness, settings.fontFamily);
+   final highContrast = settings.highContrast;
+-  final surfaceBlend = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.28 : 0.18) : scheme.surface;
+-  final cardColor = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.24 : 0.16) : scheme.surface;
++  final isComic = variant == SurfaceVariant.comic;
++  final surfaceBlend = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.28 : 0.18)
++                              : (isComic ? const Color(0xFFFFFFFF) : scheme.surface);
++  final cardColor = liquid ? scheme.surface.withOpacity(brightness == Brightness.dark ? 0.24 : 0.16)
++                           : (isComic ? const Color(0xFFFFFFFF) : scheme.surface);
+   final dividerColor = scheme.outlineVariant.withOpacity(highContrast ? 0.8 : 0.25);
+   return ThemeData(
+     useMaterial3: true,
+@@
+-    cardTheme: CardTheme(
+-      color: cardColor,
+-      elevation: liquid ? 0 : 1,
+-      margin: const EdgeInsets.all(0),
+-      shape: RoundedRectangleBorder(
+-        borderRadius: RadiusTokens.lg,
+-        side: BorderSide(color: Colors.white.withOpacity(liquid ? 0.18 : (highContrast ? 0.45 : 0.12))),
+-      ),
+-      shadowColor: liquid ? Colors.black.withOpacity(0.25) : Colors.black.withOpacity(0.15),
+-    ),
++    cardTheme: CardTheme(
++      color: cardColor,
++      elevation: liquid ? 0 : (isComic ? 0 : 1),
++      margin: const EdgeInsets.all(0),
++      shape: RoundedRectangleBorder(
++        borderRadius: RadiusTokens.lg,
++        side: isComic
++            ? const BorderSide(color: Colors.black, width: 1.4)
++            : BorderSide(color: Colors.white.withOpacity(liquid ? 0.18 : (highContrast ? 0.45 : 0.12))),
++      ),
++      shadowColor: liquid ? Colors.black.withOpacity(0.25) : Colors.black.withOpacity(0.15),
++    ),
++    extensions: <ThemeExtension<dynamic>>[
++      SurfaceStyle(variant: variant),
++    ],
+   );
+ }
+```
+
+### 3) Route surfaces at the component level
+
+Create a “comic” surface that imitates a pencil outline. We’ll keep your `GlassCard` name (to avoid sweeping rename) but **auto‑switch** based on `SurfaceStyle`. No changes at call‑sites.
+
+```diff
+--- a/apps/reader_app/lib/ui/design_system/widgets/glass_card.dart
++++ b/apps/reader_app/lib/ui/design_system/widgets/glass_card.dart
+@@
+-import '../tokens.dart';
++import '../tokens.dart';
++import '../../design_system/theme.dart' show SurfaceStyle, SurfaceVariant;
+ 
+ class GlassCard extends StatelessWidget {
+   const GlassCard({super.key, required this.child, this.onTap, this.padding,
+     this.blurSigma = BlurTokens.regular, this.borderRadius = RadiusTokens.lg});
+@@
+   @override
+   Widget build(BuildContext context) {
++    final variant =
++        Theme.of(context).extension<SurfaceStyle>()?.variant ?? SurfaceVariant.glass;
++    if (variant == SurfaceVariant.comic) {
++      return _ComicCard(borderRadius: borderRadius, padding: padding, onTap: onTap, child: child);
++    }
+     final theme = Theme.of(context);
+     final bool isDark = theme.brightness == Brightness.dark;
+@@
+     if (onTap != null) {
+       return InkWell(
+         borderRadius: borderRadius,
+         onTap: onTap,
+         child: content,
+       );
+     }
+     return content;
+   }
+ }
++
++class _ComicCard extends StatelessWidget {
++  const _ComicCard({required this.child, required this.borderRadius, this.padding, this.onTap});
++  final Widget child;
++  final BorderRadius borderRadius;
++  final EdgeInsetsGeometry? padding;
++  final VoidCallback? onTap;
++  @override
++  Widget build(BuildContext context) {
++    final box = DecoratedBox(
++      decoration: BoxDecoration(
++        color: Colors.white,
++        borderRadius: borderRadius,
++        border: Border.all(color: Colors.black, width: 1.4),
++      ),
++      child: Padding(padding: padding ?? const EdgeInsets.all(SpacingTokens.md), child: child),
++    );
++    return onTap == null
++        ? box
++        : InkWell(borderRadius: borderRadius, onTap: onTap, child: box);
++  }
++}
+```
+
+### 4) Expose the toggle in **Settings**
+
+```diff
+--- a/apps/reader_app/lib/features/settings/presentation/settings_screen.dart
++++ b/apps/reader_app/lib/features/settings/presentation/settings_screen.dart
+@@
+-    SegmentedButton(
+-      segments: const [
+-        ButtonSegment(value: AppThemeStyle.light, icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
+-        ButtonSegment(value: AppThemeStyle.dark,  icon: Icon(Icons.dark_mode_rounded),  label: Text('Dark')),
+-        ButtonSegment(value: AppThemeStyle.liquid,icon: Icon(Icons.blur_on_rounded),   label: Text('Liquid Glass')),
+-      ],
+-      selected: {settings.themeStyle},
+-      onSelectionChanged: (selection) => controller.setThemeStyle(selection.first),
+-    ),
++    SegmentedButton(
++      segments: const [
++        ButtonSegment(value: AppThemeStyle.light,  icon: Icon(Icons.light_mode_rounded), label: Text('Light')),
++        ButtonSegment(value: AppThemeStyle.dark,   icon: Icon(Icons.dark_mode_rounded),  label: Text('Dark')),
++        ButtonSegment(value: AppThemeStyle.liquid, icon: Icon(Icons.blur_on_rounded),    label: Text('Glass')),
++        ButtonSegment(value: AppThemeStyle.comic,  icon: Icon(Icons.auto_stories_rounded), label: Text('Comic')),
++      ],
++      selected: {settings.themeStyle},
++      onSelectionChanged: (s) => controller.setThemeStyle(s.first),
++    ),
+```
+
+**Result:** choosing **Comic** flips the entire app to **pure white surfaces with inked borders** (no blur) — a manga‑ish UI that pairs nicely with your rounded corners and Netflix‑style layout. All existing `GlassCard` usages adapt automatically via the ThemeExtension.
+
+---
+
+## “Netflix‑for‑manga” UX touches (safe, mocked)
+
+You’re already most of the way there: hero banner, horizontal rows, “continue reading,” etc. Here’s a light pass that keeps everything mocked:
+
+1. **Row density & section rhythm**
+
+   * Keep **3–4 carousels** on Home: *New Releases*, *Trending Now*, *Editors’ Picks*, *Because you read …*. All reuse `SeriesCard` at **240×360** (already in Home), with consistent 20 px gaps.
+
+2. **“Continue reading”** stays in Library, but duplicate a slim version on **Home** at the very top (like Netflix’s “Continue watching”) using 16:9 covers at **180 px** height; tapping jumps straight to the reader.
+
+3. **Title Detail** already has a *Related* carousel and a purchase sheet; that’s great. Add a small **rating + tags chip strip** (done) and a **translation teaser** button (you already show a “coming soon” glass sheet).
+
+4. **Desktop**: your **glass sidebar** plus content pane is already on brand. In **Comic** theme we’ll keep the layout but drop background gradients for a clean white canvas.
+
+---
+
+## Nice polish (still mocked, fast to add)
+
+* **Card hover** (desktop): scale 1.02 + lift shadow on hover for `SeriesCard`.
+* **Focus rings**: strong black outline in Comic theme (`focusColor: Colors.black`, `InkWell` focus).
+* **Reduce motion**: you already toggle a reduced animation mode via settings; keep hero/banner transitions simple when enabled.
+
+---
+
+## Optional deeper refactor (when you want)
+
+If you’d like me to go further, here’s a cohesive next step that keeps code clean:
+
+* **Unify surfaces**: create `Surface` widgets (`Surface.card`, `Surface.sheet`, `Surface.nav`) that choose glass/comic/solid internally via `SurfaceStyle`, so future components don’t import `Glass*` directly.
+* **Data shims**: a `FeedRepository` that returns the same data structures to Home/Search/Title; mock with in‑memory lists and a simple `Future.delayed`.
+* **Reader**: set up the three modes with mocked page images; animate page turns per `PageTurnAnimation` in settings. (The enum is already there.)
+
+---
+
+## Test plan
+
+1. Run `run.bat` (Windows) or `flutter run -d windows`. Verify Home renders; scroll; open Title Details; open Purchase/Translation sheets. Expect no “unbounded constraints”/“intrinsic” errors.
+2. Toggle **Comic** in Settings; expect white UI with inked borders; verify hover/focus states look intentional.
+
+---
+
+## What I changed vs. your current code (sources)
+
+* Crash is from `_MarketplaceHero` + flex in shrink‑wrapped context; repo code shows that pattern; error log confirms.
+* Theme is centralized and already toggles between liquid/solid; we extended it with a `SurfaceStyle` extension + **Comic** variant.
+* Shell & cards already implement Netflix‑like building blocks (carousels, sidebar, SeriesCard).
+
+---
+
+## If you want this as a PR
+
+Proposed branch name: `feat/comic-theme+hero-fix`
+Commit outline:
+
+1. `fix(ui): remove flex from _MarketplaceHero in shrink-wrap contexts`
+2. `feat(theme): add SurfaceStyle extension + AppThemeStyle.comic`
+3. `feat(ds): make GlassCard route to Comic surface via ThemeExtension`
+4. `chore(card): guard SeriesCard against unbounded height`
+5. `feat(settings): expose Comic style segment`
+
+---
+
+If you’d like, paste the changed files here (or flip that repo to public and ping me). I can produce the diffs exactly as patches you can apply with `git am`, plus a 1‑pager “build brief” for this phase.

@@ -140,87 +140,108 @@ class _HomeScroll extends ConsumerWidget {
   }
 }
 
-class _MarketplaceHero extends ConsumerWidget {
+class _MarketplaceHero extends StatelessWidget {
   const _MarketplaceHero();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return GlassCard(
-      borderRadius: BorderRadius.circular(40),
-      padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
-      blurSigma: BlurTokens.thick,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 900;
-          final content = <Widget>[
-            Flexible(fit: FlexFit.loose,
-              flex: isWide ? 3 : 4,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                    decoration: BoxDecoration(
-                      borderRadius: RadiusTokens.pill,
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.secondary,
-                        ],
-                      ),
-                    ),
-                    child: Text('RAW MANGA MARKETPLACE', style: theme.textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Authentic Japanese Manga',
-                    style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Purchase official releases directly from Japanese publishers. Support creators and enjoy manga in its original form.',
-                    style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.92)),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => context.go('/search'),
-                    icon: const Icon(Icons.explore_rounded),
-                    label: const Text('Explore catalog'),
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+
+        final poster = SizedBox(
+          width: isWide ? 260 : double.infinity,
+          height: isWide ? 220 : 180,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(32),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFFA8E7),
+                  Color(0xFF7D8CFF),
                 ],
               ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  offset: Offset(0, 18),
+                  blurRadius: 42,
+                ),
+              ],
             ),
-            if (isWide) const SizedBox(width: 32),
-            if (isWide)
-              Flexible(fit: FlexFit.loose,
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    width: 220,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(32),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFFFA8E7), Color(0xFF7D8CFF)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 42, offset: const Offset(0, 18)),
-                      ],
-                    ),
-                    child: const Icon(Icons.collections_bookmark_outlined, color: Colors.white, size: 96),
+            child: const Icon(Icons.collections_bookmark_outlined, color: Colors.white, size: 96),
+          ),
+        );
+
+        final text = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: RadiusTokens.pill,
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.secondary,
+                    ],
                   ),
                 ),
+                child: Text(
+                  'RAW MANGA MARKETPLACE',
+                  style: theme.textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
               ),
-          ];
+              const SizedBox(height: 18),
+              Text(
+                'Authentic Japanese Manga',
+                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Purchase official releases directly from Japanese publishers.\nSupport creators and enjoy manga in its original form.',
+                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white.withOpacity(0.92)),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/search'),
+                icon: const Icon(Icons.explore_rounded),
+                label: const Text('Explore catalog'),
+              ),
+            ],
+          ),
+        );
 
-          return isWide ? Row(children: content) : Column(children: content);
-        },
-      ),
+        return GlassCard(
+          borderRadius: BorderRadius.circular(40),
+          padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 38),
+          blurSigma: BlurTokens.thick,
+          child: isWide
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Expanded(child: text),
+                    const SizedBox(width: 32),
+                    poster,
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    text,
+                    const SizedBox(height: 16),
+                    poster,
+                  ],
+                ),
+        );
+      },
     );
   }
 }

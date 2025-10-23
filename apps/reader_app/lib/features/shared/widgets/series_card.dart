@@ -35,51 +35,49 @@ class SeriesCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.max,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final ratio = compact ? 1.0 : 3 / 4;
-              final height = width / ratio;
-              return SizedBox(
-                width: width,
-                height: height,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    SeriesCover(
-                      series: series,
-                      aspectRatio: ratio,
-                      borderRadius: borderRadius,
-                      showWatermark: false,
-                    ),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: borderRadius,
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.08),
-                            Colors.black.withOpacity(0.35),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (badges != null && badges!.isNotEmpty)
-                      Positioned(
-                        top: SpacingTokens.sm,
-                        left: SpacingTokens.sm,
-                        right: SpacingTokens.sm,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: badges!,
-                        ),
-                      ),
-                  ],
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final ratio = compact ? 1.0 : 3 / 4;
+
+          if (!constraints.hasBoundedHeight) {
+            return AspectRatio(
+              aspectRatio: ratio,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  SeriesCover(
+                    series: series,
+                    aspectRatio: ratio,
+                    borderRadius: borderRadius,
+                    showWatermark: false,
+                  ),
+                  _Overlay(badges: badges, borderRadius: borderRadius),
+                ],
+              ),
+            );
+          }
+
+          final width = constraints.maxWidth;
+          final height = width / ratio;
+
+          return SizedBox(
+            width: width,
+            height: height,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                SeriesCover(
+                  series: series,
+                  aspectRatio: ratio,
+                  borderRadius: borderRadius,
+                  showWatermark: false,
                 ),
-              );
-            },
-          ),
+                _Overlay(badges: badges, borderRadius: borderRadius),
+              ],
+            ),
+          );
+        },
+      ),
           Padding(
             padding: const EdgeInsets.fromLTRB(SpacingTokens.md, SpacingTokens.md, SpacingTokens.md, SpacingTokens.sm),
             child: Column(
@@ -121,6 +119,44 @@ class SeriesCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _Overlay extends StatelessWidget {
+  const _Overlay({required this.badges, required this.borderRadius});
+
+  final List<Widget>? badges;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.08),
+                Colors.black.withOpacity(0.35),
+              ],
+            ),
+          ),
+        ),
+        if (badges != null && badges!.isNotEmpty)
+          Positioned(
+            top: SpacingTokens.sm,
+            left: SpacingTokens.sm,
+            right: SpacingTokens.sm,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: badges!,
+            ),
+          ),
+      ],
     );
   }
 }
