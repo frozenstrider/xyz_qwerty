@@ -1,0 +1,72 @@
+version: "3.9"
+name: manga-app
+
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports: ["9100:9000", "9101:9001"]
+    volumes:
+      - minio_data:/data
+
+  api_gateway:
+    build: ../../services/api_gateway
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      AI_VISION_URL: http://ai_vision:8000
+      AI_OCR_URL: http://ai_ocr_trans:8000
+      MT_URL: http://mt_gateway:8000
+      VL_URL: http://vl_panels:8000
+      INPAINT_URL: http://inpaint:8000
+    depends_on: [minio, ai_vision, ai_ocr_trans, mt_gateway, vl_panels, inpaint]
+    ports: ["8000:8000"]
+
+  ai_vision:
+    build: ../../services/ai_vision
+    environment:
+      DBNET_WEIGHTS: /models/dbnetpp.pth   # replace with real path/volume
+      M2F_WEIGHTS: /models/mask2former_swin_s.pth
+    ports: ["8001:8000"]
+
+  ai_ocr_trans:
+    build: ../../services/ai_ocr_trans
+    environment:
+      OCR_ENGINE: manga_ocr
+    ports: ["8002:8000"]
+
+  mt_gateway:
+    build: ../../services/mt_gateway
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      DEFAULT_MODEL: qwen2.5-32b   # override at runtime
+    ports: ["8004:8000"]
+
+  vl_panels:
+    build: ../../services/vl_panels
+    environment:
+      VL_MODEL_PATH: /models/Qwen3-VL-8B-Instruct
+    ports: ["8005:8000"]
+
+  inpaint:
+    build: ../../services/inpaint
+    environment:
+      INPAINT_SIDECAR_URL: ${INPAINT_SIDECAR_URL}
+    ports: ["8006:8000"]
+
+  # Optional: wire your real sidecar and ollama here in dev
+  # sidecar:
+  #   image: your/manga-lama-sidecar:latest
+  #   ports: ["7869:7869"]
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports: ["11434:11434"]
+
+volumes:
+  minio_data:
+

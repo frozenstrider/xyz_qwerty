@@ -1,0 +1,31 @@
+﻿Project: Manga_App / reader_app Flutter client
+Date: 2025-10-23
+
+Summary of recent work:
+- Updated Flutter dependencies; added `bitsdojo_window` for custom desktop window frame.
+- Replaced default Windows chrome with custom bitsdojo frame (`lib/main.dart`, `lib/ui/window/app_window_frame.dart`, Windows runner C++ files). Custom title bar, rounded corners, window buttons.
+- Overhauled liquid-glass design system (tokens, `GlassCard`, theme) to add more translucency, gradients, and shadows.
+- Restructured app shell: desktop sidebar navigation with glass cards (`main_shell.dart`), mobile bottom nav preserved.
+- Rebuilt marketplace/home screen (`home_screen.dart`) with hero banner, new-releases carousel, search shortcut, badges, and refreshed card layout.
+- Enhanced `SeriesCard` to support badges, richer overlays, and pricing gradients; updated usages across Home, Library, Search, Title detail.
+- Introduced `run.bat` helper to run `flutter run -d windows` with pause for logs.
+
+Current issues:
+- Flutter run now builds but still crashes with "RenderFlex children have non-zero flex but incoming height constraints are unbounded" and related layout errors.
+  * Offending widgets: `_MarketplaceHero` column inside a `LayoutBuilder` inside `GlassCard` (needs `mainAxisSize: MainAxisSize.min` or wrapping in `IntrinsicHeight` alternative). `GlassCard` currently returns a blur container without height constraints when placed in scrollables.
+  * `SizedBox(height: 360, child: SeriesCard(...))` adjustments were added for horizontal lists, but vertical list/grid usage may still need explicit heights or constraints.
+- Console shows repeated "Invalid UTF8 sequence" warnings (harmless) and occasional null-check errors cascading from the failed layout.
+- Bitsdojo custom frame currently working but only after Developer Mode enabled; ensure `flutter run` is executed after installing packages (already done).
+
+Next steps for new session:
+1. Fix the layout exception in `_MarketplaceHero`: change the internal `Column` to `Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.start, crossAxisAlignment: start)` and wrap the two `Flexible` children with `Flexible(fit: FlexFit.loose, ...)`. Alternatively convert to `Row` + `Expanded` inside a sized parent.
+2. Audit all `SeriesCard` parents (Home, Library grid/list, Search results, Title related carousel) and ensure each gives a bounded height and width. Replace remaining raw `SeriesCard` in scrollable contexts with `SizedBox(height: 360, child: SeriesCard(...))` or wrap in `AspectRatio`.
+3. Re-run `run.bat` after the layout fixes to confirm the app renders instead of black screen.
+4. Iterate on visual polish once the layout is stable (e.g., background gradients, glass refractions, sidebar interactions).
+
+Notes:
+- Developer Mode must remain enabled on Windows for Flutter desktop plugins.
+- `flutter pub get` already ran when `bitsdojo_window` was added.
+- Latest code is in a dirty state; no commits made yet.
+- If run output produces new exceptions, capture them in `error.txt` for reference.
+
